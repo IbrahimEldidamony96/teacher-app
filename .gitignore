@@ -1,0 +1,22 @@
+node_modules
+.next
+out
+build
+
+.env
+.env.local
+.env*.local
+
+src/generated/prisma
+*.tsbuildinfo
+
+npm-debug.log*
+.DS_Store
+*.pem
+
+# clerk configuration (can include secrets)
+/.clerk/
+
+# Private classroom videos and reproducible vision runtime/model assets
+/private-uploads/
+/public/vision/

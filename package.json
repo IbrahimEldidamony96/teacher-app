@@ -1,0 +1,61 @@
+{
+  "name": "teacher-app",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "predev": "node scripts/ensure-local-database.mjs",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "public:start": "node scripts/public-preview.mjs start",
+    "public:stop": "node scripts/public-preview.mjs stop",
+    "public:status": "node scripts/public-preview.mjs status",
+    "whatsapp:setup": "node scripts/setup-whatsapp.mjs",
+    "lint": "eslint .",
+    "test:students": "tsx --test tests/students.test.mjs",
+    "vision:prepare": "node scripts/prepare-vision.mjs",
+    "db:seed": "tsx prisma/seed.mjs",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:local": "prisma dev --name teacher-app --detach --port 51213 --db-port 51214 --shadow-db-port 51215",
+    "db:local:stop": "prisma dev stop teacher-app",
+    "test:classrooms": "tsx --test tests/classrooms.test.mjs",
+    "test:classroom-invitations": "tsx --test tests/classroom-invitations.test.mjs",
+    "test:classrooms:browser": "tsx tests/classrooms.browser.mjs"
+  },
+  "dependencies": {
+    "@clerk/localizations": "^4.19.0",
+    "@clerk/nextjs": "^7.9.6",
+    "@mediapipe/tasks-vision": "1.0.1",
+    "@next/env": "^16.3.6",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "dotenv": "^18.0.0",
+    "next": "^16.3.6",
+    "pg": "^8.23.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@clerk/testing": "^2.2.42",
+    "@playwright/test": "^1.63.0",
+    "@prisma/dev": "0.24.17",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.6",
+    "prisma": "7.10.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "allowScripts": {
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true,
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true
+  }
+}

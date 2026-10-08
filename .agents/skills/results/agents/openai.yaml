@@ -1,0 +1,4 @@
+interface:
+  display_name: "Results"
+  short_description: "Read Teacher App analysis and setup results"
+  default_prompt: "Use $results to summarize the Teacher App README and recorded validation."

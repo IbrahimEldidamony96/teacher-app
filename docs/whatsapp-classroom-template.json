@@ -1,0 +1,21 @@
+{
+  "name": "classroom_invitation",
+  "language": "ar",
+  "category": "UTILITY",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "مرحباً ولي أمر {{1}}، بدأت الحصة المباشرة لمجموعة {{2}} بعنوان {{3}}. رابط دخول الطالب الخاص: {{4}}. يرجى استخدام الرابط للانضمام إلى الحصة.",
+      "example": {
+        "body_text": [
+          [
+            "طالب تجريبي",
+            "مجموعة تجريبية",
+            "حصة مراجعة تجريبية",
+            "https://example.com/classrooms/join/sample-invitation"
+          ]
+        ]
+      }
+    }
+  ]
+}

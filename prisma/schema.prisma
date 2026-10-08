@@ -1,0 +1,394 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────── Enums ─────────────
+
+// TEACHER = the tutor (full access). PARENT = sees only their own children.
+enum Role {
+  TEACHER
+  PARENT
+}
+
+enum GradeLevel {
+  PRIMARY_1
+  PRIMARY_2
+  PRIMARY_3
+  PRIMARY_4
+  PRIMARY_5
+  PRIMARY_6
+  PREP_1
+  PREP_2
+  PREP_3
+  SEC_1
+  SEC_2
+  SEC_3
+}
+
+// Declared in Egyptian week order (Saturday first) so ORDER BY day sorts correctly
+enum Weekday {
+  SAT
+  SUN
+  MON
+  TUE
+  WED
+  THU
+  FRI
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum HomeworkStatus {
+  DONE
+  PARTIAL
+  NOT_DONE
+}
+
+enum NotificationType {
+  ATTENDANCE_ABSENT
+  PAYMENT_REMINDER
+  HOMEWORK_ASSIGNED
+  EXAM_GRADE
+  CLASSROOM_INVITATION
+}
+
+enum PaymentMethod {
+  CASH
+  WALLET
+  INSTAPAY
+  OTHER
+}
+
+enum ClassroomMode {
+  LIVE
+  RECORDING
+}
+
+enum ClassroomStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+}
+
+enum ClassroomMessageKind {
+  QUESTION
+  REPLY
+  ANNOUNCEMENT
+}
+
+// ───────────── People ─────────────
+
+// People who log in (via Clerk): the tutor and parents
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String
+  role      Role     @default(PARENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  children ParentStudent[]
+  classrooms ClassroomSession[]
+
+  @@index([role])
+}
+
+// Students are records the tutor manages; they don't need accounts
+model Student {
+  id          String     @id @default(cuid())
+  name        String
+  gradeLevel  GradeLevel
+  parentPhone String?
+  notes       String?
+  createdAt   DateTime   @default(now())
+
+  parents     ParentStudent[]
+  enrollments Enrollment[]
+  attendance  AttendanceRecord[]
+  payments    Payment[]
+
+  homeworkResults HomeworkResult[]
+  examResults     ExamResult[]
+  notifications   Notification[]
+  classroomParticipants ClassroomParticipant[]
+
+  @@index([gradeLevel])
+}
+
+model ParentStudent {
+  id        String @id @default(cuid())
+  parentId  String
+  studentId String
+
+  parent  User    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@index([studentId])
+}
+
+// ───────────── Groups & schedule ─────────────
+
+model StudyGroup {
+  id         String     @id @default(cuid())
+  name       String     @unique // e.g. "أولى ابتدائي - السبت"
+  gradeLevel GradeLevel
+  monthlyFee Int        @default(0) // EGP per month
+  createdAt  DateTime   @default(now())
+
+  enrollments Enrollment[]
+  slots       WeeklySlot[]
+  attendance  AttendanceRecord[]
+  payments    Payment[]
+  homework    Homework[]
+  exams       Exam[]
+  classrooms  ClassroomSession[]
+
+  @@index([gradeLevel])
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  studentId  String
+  groupId    String
+  monthlyFee Int? // overrides the group fee for this student (e.g. sibling discount)
+  joinedAt   DateTime @default(now())
+
+  student Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, groupId])
+  @@index([groupId])
+}
+
+// A recurring weekly session for a group
+model WeeklySlot {
+  id        String  @id @default(cuid())
+  groupId   String
+  day       Weekday
+  startTime String // "16:00"
+  endTime   String // "17:00"
+  location  String?
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([day, startTime])
+}
+
+// ───────────── Attendance & payments ─────────────
+
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  studentId String
+  groupId   String
+  date      DateTime         @db.Date
+  status    AttendanceStatus
+  note      String?
+  createdAt DateTime         @default(now())
+
+  student Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, groupId, date])
+  @@index([groupId, date])
+}
+
+// Payments toward a month's subscription. Several partial payments per month are allowed;
+// "who paid" is derived by comparing the month's total against the student's fee.
+model Payment {
+  id        String        @id @default(cuid())
+  studentId String
+  groupId   String?
+  month     String // "2026-09"
+  amount    Int // EGP
+  method    PaymentMethod @default(CASH)
+  paidAt    DateTime      @default(now())
+  note      String?
+
+  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group   StudyGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, month])
+  @@index([month])
+}
+
+// ───────────── Homework & exams ─────────────
+
+model Homework {
+  id          String   @id @default(cuid())
+  groupId     String
+  title       String
+  description String?
+  assignedOn  DateTime @db.Date
+  dueDate     DateTime @db.Date
+  createdAt   DateTime @default(now())
+
+  group   StudyGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  results HomeworkResult[]
+
+  @@index([groupId, dueDate])
+}
+
+// One row per student once the tutor has checked the homework
+model HomeworkResult {
+  id         String         @id @default(cuid())
+  homeworkId String
+  studentId  String
+  status     HomeworkStatus
+  note       String?
+
+  homework Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([homeworkId, studentId])
+  @@index([studentId])
+}
+
+model Exam {
+  id        String   @id @default(cuid())
+  groupId   String
+  title     String
+  date      DateTime @db.Date
+  maxScore  Float
+  createdAt DateTime @default(now())
+
+  group   StudyGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  results ExamResult[]
+
+  @@index([groupId, date])
+}
+
+// score = null means the student was absent for the exam
+model ExamResult {
+  id        String  @id @default(cuid())
+  examId    String
+  studentId String
+  score     Float?
+  note      String?
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, studentId])
+  @@index([studentId])
+}
+
+// ───────────── WhatsApp notifications ─────────────
+
+// A sent (or attempted) WhatsApp message, kept mainly to avoid sending the same
+// notification twice - e.g. one payment reminder per student per month, one
+// absence message per attendance record, one grade message per exam result.
+model Notification {
+  id      String           @id @default(cuid())
+  student Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId String
+  type    NotificationType
+  refId   String // meaning depends on type: attendanceRecordId, "YYYY-MM", homeworkId, or examId
+  status  String // "sent" | "failed" | "skipped_no_phone" | "skipped_not_configured"
+  error   String?
+  createdAt DateTime @default(now())
+
+  @@index([studentId, type, refId])
+}
+
+// A group lesson with private roster invitations, video and two-way questions.
+model ClassroomSession {
+  id                    String          @id @default(cuid())
+  ownerId               String
+  groupId               String
+  title                 String
+  mode                  ClassroomMode
+  status                ClassroomStatus @default(DRAFT)
+  attendanceDate        DateTime        @db.Date
+  videoFile             String?
+  videoName             String?
+  videoMime             String?
+  videoSize             Int?
+  headcountEstimate     Int?
+  headcountSamples      Int             @default(0)
+  teacherConnectionId   String?
+  teacherLastSeenAt      DateTime?
+  startedAt             DateTime?
+  endedAt               DateTime?
+  attendanceConfirmedAt DateTime?
+  createdAt             DateTime        @default(now())
+
+  owner        User                   @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  group        StudyGroup             @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  participants ClassroomParticipant[]
+  messages     ClassroomMessage[]
+  signals      ClassroomSignal[]
+
+  @@index([ownerId, createdAt])
+  @@index([groupId, attendanceDate])
+}
+
+model ClassroomParticipant {
+  id              String    @id @default(cuid())
+  sessionId       String
+  studentId       String
+  inviteNonce     String    @default(cuid())
+  joinedAt        DateTime?
+  lastSeenAt      DateTime?
+  attendedSeconds Int       @default(0)
+  connectionId    String?
+  handRaised      Boolean   @default(false)
+
+  session  ClassroomSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student  Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sent     ClassroomMessage[] @relation("ClassroomSender")
+  received ClassroomMessage[] @relation("ClassroomRecipient")
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+}
+
+model ClassroomMessage {
+  id          Int                  @id @default(autoincrement())
+  sessionId   String
+  senderId    String?
+  recipientId String?
+  kind        ClassroomMessageKind @default(QUESTION)
+  body        String
+  replyToId   Int?
+  isPrivate   Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+
+  session   ClassroomSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sender    ClassroomParticipant? @relation("ClassroomSender", fields: [senderId], references: [id], onDelete: SetNull)
+  recipient ClassroomParticipant? @relation("ClassroomRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  replyTo   ClassroomMessage?     @relation("ClassroomReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   ClassroomMessage[]    @relation("ClassroomReplies")
+
+  @@index([sessionId, id])
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([replyToId])
+}
+
+// Only signaling is stored here; live audio/video flows between browsers.
+model ClassroomSignal {
+  id        Int      @id @default(autoincrement())
+  sessionId String
+  fromPeer  String
+  toPeer    String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  session ClassroomSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, toPeer, id])
+  @@index([createdAt])
+}
