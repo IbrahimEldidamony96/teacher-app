@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { GRADE_ORDER, DAY_ORDER, ATTENDANCE_ORDER, HOMEWORK_ORDER, PAYMENT_METHODS } from "@/lib/labels";
 import { cairoToday, isValidDateString, isValidMonth } from "@/lib/time";
-import { normalizeParentPhone, normalizeStudentName } from "@/lib/student-identity";
+import { normalizeStudentPhone, normalizeStudentName } from "@/lib/student-identity";
 import { createGroup, updateGroup, enrollStudent, unenrollStudent } from "@/lib/data/groups";
 import { createStudent } from "@/lib/data/students";
 import { addSlot, deleteSlot } from "@/lib/data/timetable";
@@ -104,9 +104,9 @@ export async function createStudentAction(_previousState, formData) {
   await requireRole("TEACHER");
   const name = normalizeStudentName(text(formData, "name"));
   if (!name) return { message: "اسم الطالب مطلوب.", existingStudentId: null };
-  const rawPhone = text(formData, "parentPhone");
-  const parentPhone = normalizeParentPhone(rawPhone);
-  if (rawPhone && !PHONE.test(parentPhone ?? "")) {
+  const rawPhone = text(formData, "studentPhone");
+  const studentPhone = normalizeStudentPhone(rawPhone);
+  if (rawPhone && !PHONE.test(studentPhone ?? "")) {
     return { message: "رقم التليفون مش مظبوط.", existingStudentId: null };
   }
   const studentGrade = text(formData, "gradeLevel");
@@ -120,7 +120,7 @@ export async function createStudentAction(_previousState, formData) {
     result = await createStudent({
       name,
       gradeLevel: studentGrade,
-      parentPhone,
+      studentPhone,
       notes: text(formData, "notes") || null,
       groupId: groupId || undefined,
     });
@@ -132,7 +132,7 @@ export async function createStudentAction(_previousState, formData) {
   }
   if (!result.created) {
     return {
-      message: "الطالب ده مسجل بالفعل بنفس الاسم ورقم ولي الأمر.",
+      message: "الطالب ده مسجل بالفعل بنفس الاسم ورقم الطالب.",
       existingStudentId: result.student.id,
     };
   }

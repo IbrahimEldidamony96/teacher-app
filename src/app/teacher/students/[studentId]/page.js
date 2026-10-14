@@ -55,16 +55,16 @@ export default async function StudentPage({ params }) {
             ({GRADE_LABELS[student.gradeLevel]})
           </span>
         </h1>
-        {student.parentPhone && (
+        {student.studentPhone && (
           <p className="mt-1 text-sm text-gray-500">
-            رقم ولي الأمر: <span dir="ltr">{student.parentPhone}</span>
+            رقم الطالب: <span dir="ltr">{student.studentPhone}</span>
           </p>
         )}
         {student.notes && <p className="mt-1 text-sm text-gray-500">ملاحظات: {student.notes}</p>}
         {student.archivedAt && <p className="mt-2 text-sm text-amber-600">الطالب مؤرشف. كل السجل محفوظ، والتسجيل الجديد متوقف لحد الاسترجاع.</p>}
       </div>
 
-      <StudentEditForm student={{ id: student.id, name: student.name, gradeLevel: student.gradeLevel, parentPhone: student.parentPhone, notes: student.notes }} />
+      <StudentEditForm student={{ id: student.id, name: student.name, gradeLevel: student.gradeLevel, studentPhone: student.studentPhone, notes: student.notes }} />
       <LifecycleForm recordId={student.id} archived={Boolean(student.archivedAt)} />
 
       {/* Groups */}

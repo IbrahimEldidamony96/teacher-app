@@ -56,7 +56,7 @@ async function sendStudentInvitation(actor, connectionId, origin, original) {
           id: original.id, sessionId: session.id, inviteNonce: original.inviteNonce,
           student: { enrollments: { some: { groupId: session.groupId } } },
         },
-        include: { student: { select: { name: true, parentPhone: true } } },
+        include: { student: { select: { name: true, studentPhone: true } } },
       });
       classroomAssert(participant, "دعوة الطالب أو تسجيله بالمجموعة تغير. حدث القائمة وأعد المحاولة.", 409);
       const sent = await tx.notification.findFirst({
@@ -67,7 +67,7 @@ async function sendStudentInvitation(actor, connectionId, origin, original) {
       const inviteUrl = new URL(`/api/classrooms/${session.id}/invite`, origin);
       inviteUrl.searchParams.set("token", createClassroomInvite(participant));
       const response = await sendWhatsAppTemplate({
-        to: participant.student.parentPhone, template: "classroom_invitation",
+        to: participant.student.studentPhone, template: "classroom_invitation",
         params: [participant.student.name, session.group.name, session.title, inviteUrl.href],
       });
       const status = ["sent", "skipped_no_phone", "skipped_not_configured"].includes(response.status)

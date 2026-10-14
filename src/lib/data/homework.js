@@ -52,7 +52,7 @@ export async function createHomework({ groupId, title, description, dueDate }) {
   validateHomework({ title, description, dueDate });
   const group = await prisma.studyGroup.findUnique({
     where: { id: groupId },
-    include: { enrollments: { where: { endedAt: null, student: { archivedAt: null } }, include: { student: { select: { id: true, name: true, parentPhone: true } } } } },
+    include: { enrollments: { where: { endedAt: null, student: { archivedAt: null } }, include: { student: { select: { id: true, name: true, studentPhone: true } } } } },
   });
   if (!group || group.archivedAt) throw new Error("المجموعة مش موجودة أو مؤرشفة.");
 
@@ -71,7 +71,7 @@ export async function createHomework({ groupId, title, description, dueDate }) {
     group.enrollments.map(({ student }) =>
       notifyHomeworkAssigned({
         studentId: student.id,
-        studentPhone: student.parentPhone,
+        studentPhone: student.studentPhone,
         studentName: student.name,
         homeworkTitle: title,
         dueDate: homework.dueDate,
