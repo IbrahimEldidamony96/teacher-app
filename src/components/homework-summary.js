@@ -35,7 +35,7 @@ export default function HomeworkSummary({ data, showNotes = false, studentId = n
                 </span>
                 {h.description && <p className="mt-2 whitespace-pre-wrap text-slate-600">{h.description}</p>}
                 {h.attachments?.length > 0 && <p className="mt-2 text-xs text-slate-500">{h.attachments.length} ملف مرفق</p>}
-                {studentId && <Link href={`/parent/homework/${h.id}?student=${encodeURIComponent(studentId)}`} className="mt-2 inline-block text-blue-600 underline">تفاصيل الواجب والتسليم</Link>}
+                {studentId && <Link href={`/student/homework/${h.id}`} className="mt-2 inline-block text-blue-600 underline">تفاصيل الواجب والتسليم</Link>}
               </li>
             ))}
           </ul>
@@ -61,7 +61,7 @@ export default function HomeworkSummary({ data, showNotes = false, studentId = n
                     <span className="mt-1 block text-xs text-slate-500">{c.note}</span>
                   )}
                   {c.description && <span className="mt-1 block whitespace-pre-wrap text-xs text-slate-500">{c.description}</span>}
-                  {studentId && c.homeworkId && <Link href={`/parent/homework/${c.homeworkId}?student=${encodeURIComponent(studentId)}`} className="mt-2 block text-xs text-blue-600 underline">عرض الواجب والتسليم</Link>}
+                  {studentId && c.homeworkId && <Link href={`/student/homework/${c.homeworkId}`} className="mt-2 block text-xs text-blue-600 underline">عرض الواجب والتسليم</Link>}
                 </span>
                 <span className={`ui-badge shrink-0 ${HOMEWORK_BADGE[c.status]}`}>
                   {HOMEWORK_LABELS[c.status]}

@@ -7,7 +7,7 @@ import { GRADE_ORDER, DAY_ORDER, ATTENDANCE_ORDER, HOMEWORK_ORDER, PAYMENT_METHO
 import { cairoToday, isValidDateString, isValidMonth } from "@/lib/time";
 import { normalizeParentPhone, normalizeStudentName } from "@/lib/student-identity";
 import { createGroup, updateGroup, enrollStudent, unenrollStudent } from "@/lib/data/groups";
-import { createStudent, linkParent, unlinkParent } from "@/lib/data/students";
+import { createStudent } from "@/lib/data/students";
 import { addSlot, deleteSlot } from "@/lib/data/timetable";
 import { saveAttendance } from "@/lib/data/attendance";
 import { recordPayment, deletePayment, sendManualPaymentReminder } from "@/lib/data/payments";
@@ -139,24 +139,6 @@ export async function createStudentAction(_previousState, formData) {
 
   refresh();
   redirect(`/teacher/students/${result.student.id}`);
-}
-
-export async function linkParentAction(formData) {
-  await requireRole("TEACHER");
-  const studentId = required(text(formData, "studentId"), "الطالب");
-  const parentId = required(text(formData, "parentId"), "ولي الأمر");
-
-  await linkParent(studentId, parentId);
-  refresh();
-}
-
-export async function unlinkParentAction(formData) {
-  await requireRole("TEACHER");
-  const studentId = required(text(formData, "studentId"), "الطالب");
-  const parentId = required(text(formData, "parentId"), "ولي الأمر");
-
-  await unlinkParent(studentId, parentId);
-  refresh();
 }
 
 // ───────── Weekly schedule ─────────

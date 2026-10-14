@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
-import { updateStudent } from "@/lib/data/students";
+import { updateStudent, setStudentLoginEmail } from "@/lib/data/students";
 import { setStudentArchived, setGroupArchived, bulkEnrollStudents } from "@/lib/data/roster-lifecycle";
 import { previewStudentImport, importStudents } from "@/lib/data/student-import";
 import { validateStudentInput } from "@/lib/student-validation";
@@ -87,4 +87,12 @@ export async function importStudentsAction(_previous, formData) {
   catch (error) { return failure(error); }
   refresh();
   return { message: `اتضاف ${result.created} طالب واتخطّى ${result.skipped} طالب مسجل بالفعل.`, success: true, completed: true };
+}
+
+export async function setStudentLoginEmailAction(formData){
+  await requireRole("TEACHER");
+  const studentId=text(formData,"studentId");
+  if(!studentId) throw new Error("الطالب مطلوب.");
+  await setStudentLoginEmail(studentId,text(formData,"loginEmail"));
+  refresh();
 }

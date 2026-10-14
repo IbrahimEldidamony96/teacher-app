@@ -2,18 +2,19 @@ import Link from "next/link";
 import AppShell from "@/components/app-shell";
 import AppIcon from "@/components/app-icon";
 import { requireUser } from "@/lib/auth";
-import { getTodaySlots, listChildrenSchedules } from "@/lib/data/timetable";
-import { getAttendanceCountsForDate, listChildrenAttendance } from "@/lib/data/attendance";
+import { getTodaySlots } from "@/lib/data/timetable";
+import { getAttendanceCountsForDate, getStudentAttendance } from "@/lib/data/attendance";
 import { cairoNow, cairoToday, cairoMonth } from "@/lib/time";
 import { DAY_LABELS, GRADE_LABELS, formatRange, formatMonth, egp } from "@/lib/labels";
 import WeekSchedule from "@/components/week-schedule";
 import AttendanceSummary from "@/components/attendance-summary";
 import PaymentHistory from "@/components/payment-history";
-import { getMonthOverview, listChildrenPayments } from "@/lib/data/payments";
+import { getMonthOverview, getStudentPaymentHistory } from "@/lib/data/payments";
 import HomeworkSummary from "@/components/homework-summary";
 import GradesSummary from "@/components/grades-summary";
-import { listChildrenHomework } from "@/lib/data/homework";
-import { listChildrenExams } from "@/lib/data/exams";
+import { getStudentHomework } from "@/lib/data/homework";
+import { getStudentExams } from "@/lib/data/exams";
+import { prisma } from "@/lib/prisma";
 
 const shortcuts = [
   ["groups", "المجموعات"],
@@ -34,6 +35,7 @@ function statusOf(slot, time, isNext) {
   if (isNext) return { label: "الجاية", cls: "bg-blue-50 text-blue-700" };
   return { label: "لسه", cls: "bg-slate-100 text-slate-600" };
 }
+
 
 async function TeacherHome() {
   const { day, time } = cairoNow();
@@ -148,80 +150,47 @@ async function TeacherHome() {
   );
 }
 
-async function ParentHome({ user }) {
-  const [children, attendanceByChild, paymentsByChild, homeworkByChild, examsByChild] = await Promise.all([
-    listChildrenSchedules(user.id),
-    listChildrenAttendance(user.id),
-    listChildrenPayments(user.id),
-    listChildrenHomework(user.id),
-    listChildrenExams(user.id),
+
+async function StudentHome({user}) {
+  const studentId = user.studentProfile.id;
+  const [student, attendance, payments, homework, exams] = await Promise.all([
+    prisma.student.findUnique({
+      where: { id: studentId },
+      include: { enrollments: { where: { endedAt: null, group: { archivedAt: null } },
+        include: { group: { select: { id: true, name: true, gradeLevel: true, slots: true } } } } },
+    }),
+    getStudentAttendance(studentId),
+    getStudentPaymentHistory(studentId),
+    getStudentHomework(studentId),
+    getStudentExams(studentId),
   ]);
-
-  if (children.length === 0) {
-    return (
-      <p className="ui-empty">
-        لسه مفيش أبناء مربوطين بحسابك. كلّم المدرس علشان يربطهم بيك.
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-10">
-      {children.map(({ student, slots }) => (
-        <section key={student.id} className="ui-panel space-y-6">
-          <h2 className="text-lg font-semibold">
-            {student.name}{" "}
-            <span className="text-sm font-normal text-gray-500">
-              ({GRADE_LABELS[student.gradeLevel]})
-            </span>
-          </h2>
-
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-500">مواعيد الحصص</h3>
-            <WeekSchedule slots={slots} />
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-500">الحضور</h3>
-            <AttendanceSummary summary={attendanceByChild.get(student.id)} />
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-500">الاشتراكات</h3>
-            <PaymentHistory history={paymentsByChild.get(student.id)} />
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-500">الواجبات</h3>
-            <HomeworkSummary data={homeworkByChild.get(student.id)} />
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-500">الدرجات</h3>
-            <GradesSummary rows={examsByChild.get(student.id)} />
-          </div>
-        </section>
-      ))}
+  if (!student || student.archivedAt) return <p className="ui-empty">حساب الطالب غير متاح.</p>;
+  const groups = student.enrollments.map(e => e.group);
+  return <div className="space-y-7">
+    <div className="ui-panel space-y-2">
+      <h2 className="text-lg font-semibold">مرحبًا {student.name}</h2>
+      <p className="text-sm text-gray-500">{GRADE_LABELS[student.gradeLevel]} · {groups.map(g => g.name).join("، ") || "لم تُسجل في مجموعة بعد"}</p>
     </div>
-  );
+    <section className="ui-panel space-y-3">
+      <h2 className="font-semibold">مواعيد الحصص</h2>
+      <WeekSchedule slots={groups.flatMap(group => group.slots.map(slot => ({...slot,group})))}/>
+      <Link className="text-sm text-blue-600 underline" href="/student/classrooms">الحصص الأونلاين والتسجيلات</Link>
+    </section>
+    <section className="ui-panel space-y-3"><h2 className="font-semibold">الحضور</h2><AttendanceSummary summary={attendance}/></section>
+    <section className="ui-panel space-y-3"><h2 className="font-semibold">الاشتراكات</h2><PaymentHistory history={payments.history}/></section>
+    <section className="ui-panel space-y-3"><h2 className="font-semibold">الواجبات</h2><HomeworkSummary data={homework} studentId={studentId}/></section>
+    <section className="ui-panel space-y-3"><h2 className="font-semibold">الدرجات</h2><GradesSummary rows={exams}/></section>
+  </div>;
 }
-
-// Only requireUser here (not requireRole), because requireRole redirects to /dashboard
-export default async function DashboardPage() {
+export default async function DashboardPage(){
   const user = await requireUser();
-
-  return (
-    <AppShell teacher={user.role === "TEACHER"}>
-      <div className="space-y-7">
-        <header className="dashboard-welcome">
-          <div>
-            <p className="mb-1 text-sm text-gray-500">{user.role === "TEACHER" ? "كل تفاصيل يومك في مكان واحد" : "تابع رحلة أبنائك الدراسية"}</p>
-            <h1>أهلًا {user.name} <span className="text-blue-600">،</span></h1>
-          </div>
-          <span className="dashboard-date"><AppIcon name="calendar" size={18} />{DAY_LABELS[cairoNow().day]} · {formatMonth(cairoMonth())}</span>
-        </header>
-        {user.role === "TEACHER" ? <TeacherHome /> : <ParentHome user={user} />}
-      </div>
-    </AppShell>
-  );
+  return <AppShell teacher={user.role === "TEACHER"}>
+    <div className="space-y-7">
+      <header className="dashboard-welcome"><div>
+        <p className="mb-1 text-sm text-gray-500">{user.role === "TEACHER" ? "كل تفاصيل يومك في مكان واحد" : "تابع دروسك ونتائجك"}</p>
+        <h1>أهلًا {user.name} <span className="text-blue-600">،</span></h1>
+      </div><span className="dashboard-date"><AppIcon name="calendar" size={18}/>{DAY_LABELS[cairoNow().day]} · {formatMonth(cairoMonth())}</span></header>
+      {user.role === "TEACHER" ? <TeacherHome/> : <StudentHome user={user}/>}
+    </div>
+  </AppShell>;
 }

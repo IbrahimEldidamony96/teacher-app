@@ -23,7 +23,7 @@ export default function RosterList({ students, groups }) {
     </form>}
     {!students.length ? <p className="ui-empty">مفيش طلاب مطابقين للبحث.</p> : <ul className={card}>{students.map((student) => <li key={student.id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
       <div className="flex items-center gap-3">{!student.archived && <input type="checkbox" name="studentId" value={student.id} form="bulk-enrollment" aria-label={`تحديد ${student.name}`} checked={visibleSelection.includes(student.id)} onChange={() => toggle(student.id)} />}
-        <Link href={`/teacher/students/${student.id}`} className="hover:underline"><span className="font-medium">{student.name}</span><span className="block text-sm text-gray-500">{GRADE_LABELS[student.gradeLevel]} · {student.groups.length ? student.groups.join("، ") : "من غير مجموعة"}{student.linkedParent && " · ولي الأمر مربوط"}{student.archived && " · مؤرشف"}</span></Link>
+        <Link href={`/teacher/students/${student.id}`} className="hover:underline"><span className="font-medium">{student.name}</span><span className="block text-sm text-gray-500">{GRADE_LABELS[student.gradeLevel]} · {student.groups.length ? student.groups.join("، ") : "من غير مجموعة"}{student.linkedAccount && " · حساب الطالب مفعّل"}{student.archived && " · مؤرشف"}</span></Link>
       </div>
       <LifecycleForm recordId={student.id} archived={student.archived} />
     </li>)}</ul>}

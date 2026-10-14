@@ -18,9 +18,14 @@ const teacherLinks = [
   { href: "/teacher/schedule", label: "الجدول", icon: "calendar" },
 ];
 
+const studentLinks = [
+  { href: "/dashboard", label: "الرئيسية", icon: "home" },
+  { href: "/student/classrooms", label: "حصصي الأونلاين", icon: "video" },
+];
+
 export default function AppShell({ children, teacher = true }) {
   const pathname = usePathname();
-  const links = teacher ? teacherLinks : teacherLinks.slice(0, 1);
+  const links = teacher ? teacherLinks : studentLinks;
   const activeLink = links.find(
     ({ href }) => pathname === href || pathname?.startsWith(`${href}/`),
   );
@@ -34,12 +39,12 @@ export default function AppShell({ children, teacher = true }) {
           <span className={styles.brandMark}><AppIcon name="book" size={25} /></span>
           <span className={styles.brandText}>
             <strong>تطبيق المدرس</strong>
-            <span>{teacher ? "كل يوم دراسي، أسهل" : "معًا نتابع خطواتهم"}</span>
+            <span>{teacher ? "كل يوم دراسي، أسهل" : "رحلتك الدراسية في مكان واحد"}</span>
           </span>
         </Link>
 
         <nav className={styles.navigation} aria-label="القائمة الرئيسية">
-          <p className={styles.navigationLabel}>{teacher ? "إدارة دروسك" : "متابعة أبنائك"}</p>
+          <p className={styles.navigationLabel}>{teacher ? "إدارة دروسك" : "متابعة دراستك"}</p>
           <div className={styles.links}>
             {links.map(({ href, label, icon }) => {
               const active = activeLink?.href === href;
@@ -61,14 +66,14 @@ export default function AppShell({ children, teacher = true }) {
 
         <div className={styles.sidebarNote}>
           <span className={styles.noteIcon}><AppIcon name="sparkle" size={20} /></span>
-          <strong>{teacher ? "مساحة لكل تفاصيل يومك" : "قريب من كل خطوة"}</strong>
+          <strong>{teacher ? "مساحة لكل تفاصيل يومك" : "كل دروسك في مكان واحد"}</strong>
           <p>{teacher ? "حصصك وطلابك ومتابعتهم، في مكان واحد." : "الحضور والواجبات والدرجات، في مكان واحد."}</p>
         </div>
 
         <div className={styles.account}>
           <UserButton />
           <span className={styles.accountLabel}>
-            <strong>{teacher ? "حساب المدرس" : "حساب ولي الأمر"}</strong>
+            <strong>{teacher ? "حساب المدرس" : "حساب الطالب"}</strong>
             <span>إدارة الحساب</span>
           </span>
         </div>
@@ -77,7 +82,7 @@ export default function AppShell({ children, teacher = true }) {
       <div className={styles.workspace}>
         <header className={styles.topbar}>
           <div className={styles.breadcrumb}>
-            <span>{teacher ? "مساحة المدرس" : "مساحة ولي الأمر"}</span>
+            <span>{teacher ? "مساحة المدرس" : "مساحة الطالب"}</span>
             <span className={styles.breadcrumbDivider} aria-hidden="true">/</span>
             <strong>{activeLink?.label ?? "الرئيسية"}</strong>
           </div>

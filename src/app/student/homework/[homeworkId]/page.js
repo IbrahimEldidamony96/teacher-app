@@ -2,19 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
-import { getParentHomework } from "@/lib/data/homework";
+import { getHomeworkForStudent } from "@/lib/data/homework";
 import { cairoToday } from "@/lib/time";
 import { homeworkState } from "@/lib/learning-policy";
 import { HOMEWORK_LABELS, formatDate } from "@/lib/labels";
 import AppShell from "@/components/app-shell";
 import HomeworkSubmissionForm from "./submission-form";
 
-export default async function ParentHomeworkPage({ params, searchParams }) {
-  const user = await requireRole("PARENT");
+export default async function StudentHomeworkPage({ params, searchParams }) {
+  const user = await requireRole("STUDENT");
   const { homeworkId } = await params;
-  const query = await searchParams;
-  const studentId = typeof query?.student === "string" ? query.student : "";
-  if (!studentId) notFound();
+  const studentId = user.studentProfile.id;
   const homework = await getParentHomework(user.id, homeworkId, studentId);
   if (!homework) notFound();
   const student = await prisma.student.findUnique({ where: { id: studentId }, select: { name: true } });
@@ -36,7 +34,7 @@ export default async function ParentHomeworkPage({ params, searchParams }) {
           {homework.attachments.length > 0 && <div className="space-y-2">
             <h2 className="font-semibold">ملفات الواجب</h2>
             <ul className="space-y-2 text-sm">
-              {homework.attachments.map((file) => <li key={file.id}><a className="text-blue-600 underline" href={`/api/homework/${homework.id}/attachments/${file.id}?student=${encodeURIComponent(studentId)}`}>{file.fileName}</a> <span className="text-gray-500">({Math.ceil(file.fileSize / 1024)} كيلوبايت)</span></li>)}
+              {homework.attachments.map((file) => <li key={file.id}><a className="text-blue-600 underline" href={`/api/homework/${homework.id}/attachments/${file.id}`}>{file.fileName}</a> <span className="text-gray-500">({Math.ceil(file.fileSize / 1024)} كيلوبايت)</span></li>)}
             </ul>
           </div>}
         </section>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
-import { getStudentDetail, listLinkableParents } from "@/lib/data/students";
+import { getStudentDetail } from "@/lib/data/students";
 import { getStudentAttendance } from "@/lib/data/attendance";
 import { getStudentHomework } from "@/lib/data/homework";
 import { getStudentExams } from "@/lib/data/exams";
@@ -20,12 +20,11 @@ import { cairoMonth, shiftMonth, lastMonths } from "@/lib/time";
 import { getStudentPaymentHistory } from "@/lib/data/payments";
 import PaymentHistory from "@/components/payment-history";
 import {
-  linkParentAction,
-  unlinkParentAction,
   recordPaymentAction,
   deletePaymentAction,
 } from "@/app/teacher/actions";
 import { input, button, dangerButton, card } from "@/app/teacher/ui";
+import { setStudentLoginEmailAction } from "@/app/teacher/student-actions";
 import StudentEditForm from "../student-edit-form";
 import LifecycleForm from "../lifecycle-form";
 
@@ -36,7 +35,6 @@ export default async function StudentPage({ params }) {
   const student = await getStudentDetail(studentId);
   if (!student) notFound();
 
-  const linkable = await listLinkableParents(studentId);
   const attendance = await getStudentAttendance(studentId, 20);
   const homework = await getStudentHomework(studentId, 15);
   const exams = await getStudentExams(studentId, 15);
@@ -178,50 +176,17 @@ export default async function StudentPage({ params }) {
         )}
       </section>
 
-      {/* Parents */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">أولياء الأمور المربوطين</h2>
-        <p className="text-sm text-gray-500">
-          ولي الأمر بيعمل حساب بنفسه الأول، وبعدين يظهر هنا علشان تربطه بالطالب.
-        </p>
-
-        {linkable.length > 0 && (
-          <form action={linkParentAction} className="flex flex-wrap gap-2">
-            <input type="hidden" name="studentId" value={student.id} />
-            <select name="parentId" required className={input}>
-              {linkable.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.email})
-                </option>
-              ))}
-            </select>
-            <button type="submit" className={button}>
-              ربط
-            </button>
-          </form>
-        )}
-
-        {student.parents.length > 0 && (
-          <ul className={card}>
-            {student.parents.map((link) => (
-              <li key={link.id} className="flex items-center justify-between gap-3 px-4 py-2">
-                <span>
-                  {link.parent.name}{" "}
-                  <span className="text-sm text-gray-500" dir="ltr">
-                    {link.parent.email}
-                  </span>
-                </span>
-                <form action={unlinkParentAction}>
-                  <input type="hidden" name="studentId" value={student.id} />
-                  <input type="hidden" name="parentId" value={link.parent.id} />
-                  <button type="submit" className={dangerButton}>
-                    فك الربط
-                  </button>
-                </form>
-              </li>
-            ))}
-          </ul>
-        )}
+      <section className="ui-panel space-y-3">
+        <h2 className="text-lg font-semibold">حساب الطالب</h2>
+        <p className="text-sm text-gray-500">حدد إيميل الطالب المسجل في Clerk. لازم الطالب يحقق الإيميل قبل ما يقدر يفتح بياناته. إزالة الإيميل توقف وصوله فورًا.</p>
+        <form action={setStudentLoginEmailAction} className="ui-form flex flex-wrap items-end gap-2">
+          <input type="hidden" name="studentId" value={student.id}/>
+          <label className="flex flex-col gap-1 text-sm">البريد الإلكتروني
+            <input type="email" name="loginEmail" defaultValue={student.loginEmail ?? ""} maxLength={254} className={input} placeholder="student@example.com"/>
+          </label>
+          <button className={button} type="submit">حفظ حساب الطالب</button>
+        </form>
+        <p className="text-sm">{student.account ? "الحساب مربوط بالفعل" : student.loginEmail ? "بانتظار تسجيل الطالب بالبريد المعتمد" : "لم يتم تخصيص حساب بعد"}</p>
       </section>
     </div>
   );

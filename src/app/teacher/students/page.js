@@ -40,7 +40,7 @@ export default async function StudentsPage({ searchParams }) {
         <button className="ui-button-secondary">بحث وتصفية</button><Link href="/teacher/students" className="text-sm underline">مسح البحث</Link>
       </form>
 
-      <RosterList key={href(roster.page)} groups={choices} students={roster.students.map((student) => ({ id: student.id, name: student.name, gradeLevel: student.gradeLevel, archived: Boolean(student.archivedAt), linkedParent: student.parents.length > 0, groups: student.enrollments.map((enrollment) => enrollment.group.name) }))} />
+      <RosterList key={href(roster.page)} groups={choices} students={roster.students.map((student) => ({ id: student.id, name: student.name, gradeLevel: student.gradeLevel, archived: Boolean(student.archivedAt), linkedAccount: Boolean(student.account), groups: student.enrollments.map((enrollment) => enrollment.group.name) }))} />
       <nav aria-label="صفحات الطلاب" className="flex flex-wrap items-center gap-3 text-sm">
         {roster.page > 1 && <Link href={href(roster.page - 1)} className="ui-button-secondary">السابق</Link>}
         <span>صفحة {roster.page} من {roster.pages} · 25 طالب في الصفحة</span>
