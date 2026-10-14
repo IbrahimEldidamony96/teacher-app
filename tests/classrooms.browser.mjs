@@ -90,7 +90,8 @@ try {
     pages[i].setDefaultTimeout(45_000);
     pages[i].on("pageerror", (error) => issues.push(redact(error.message)));
     await setupClerkTestingToken({ page: pages[i] });
-    await pages[i].goto("/");
+    await pages[i].goto(state.roster[i].invitePath);
+    await expect(pages[i]).toHaveURL(/\/sign-in/);
     await clerk.signIn({ page: pages[i], emailAddress: studentEmails[i] });
     const clerkId = await pages[i].evaluate(() => window.Clerk.user.id);
     const account = await prisma.user.create({
