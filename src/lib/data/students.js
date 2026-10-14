@@ -9,7 +9,7 @@ export function listStudents({ archived = "active" } = {}) {
     orderBy: { name: "asc" },
     include: {
       enrollments: { where: { endedAt: null }, include: { group: { select: { id: true, name: true } } } },
-      parents: { select: { id: true } },
+      account: { select: { id: true } },
     },
   });
 }
@@ -26,7 +26,7 @@ export async function getStudentRoster({ search = "", gradeLevel = "", groupId =
   const currentPage = Math.min(Math.max(1, page), pages);
   const students = await prisma.student.findMany({
     where, orderBy: [{ name: "asc" }, { id: "asc" }], skip: (currentPage - 1) * pageSize, take: pageSize,
-    include: { enrollments: { where: { endedAt: null }, include: { group: { select: { id: true, name: true } } } }, parents: { select: { id: true } } },
+    include: { enrollments: { where: { endedAt: null }, include: { group: { select: { id: true, name: true } } } }, account: { select: { id: true } } },
   });
   return { students, total, pages, page: currentPage };
 }
@@ -39,9 +39,7 @@ export function getStudentDetail(id) {
         orderBy: [{ endedAt: "asc" }, { joinedAt: "desc" }],
         include: { group: { select: { id: true, name: true, gradeLevel: true, monthlyFee: true } } },
       },
-      parents: {
-        include: { parent: { select: { id: true, name: true, email: true } } },
-      },
+      account: { select: { id: true, email: true } },
     },
   });
 }
@@ -112,28 +110,23 @@ export function updateStudent(studentId, data) {
   }, { isolationLevel: "ReadCommitted" });
 }
 
-// Parent accounts (signed-up users with role PARENT) not yet linked to this student
-export function listLinkableParents(studentId) {
-  return prisma.user.findMany({
-    where: { role: "PARENT", children: { none: { studentId } } },
-    select: { id: true, name: true, email: true },
-    orderBy: { name: "asc" },
+// Only the teacher can approve a student's verified email address.
+// Changing the email revokes the prior account's access immediately.
+export async function setStudentLoginEmail(studentId, loginEmail) {
+  const email = loginEmail.trim().toLowerCase();
+  if (email && (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254)) {
+    throw new Error("اكتب بريد إلكتروني صحيح للطالب.");
+  }
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw`SELECT "id" FROM "Student" WHERE "id" = ${studentId} FOR UPDATE`;
+    if (!rows.length) throw new Error("الطالب غير موجود.");
+    const student = await tx.student.findUnique({ where: { id: studentId } });
+    if (student.loginEmail === (email || null)) return student;
+    const teacher = email && await tx.user.findFirst({ where: { email, role: "TEACHER" }, select: { id: true } });
+    if (teacher) throw new Error("البريد الإلكتروني مخصص لحساب المدرس.");
+    return tx.student.update({
+      where: { id: studentId },
+      data: { loginEmail: email || null, userId: null },
+    });
   });
-}
-
-export async function linkParent(studentId, parentId) {
-  const parent = await prisma.user.findFirst({
-    where: { id: parentId, role: "PARENT" },
-    select: { id: true },
-  });
-  if (!parent) throw new Error("ولي الأمر مش موجود.");
-
-  await prisma.parentStudent.createMany({
-    data: [{ studentId, parentId }],
-    skipDuplicates: true,
-  });
-}
-
-export function unlinkParent(studentId, parentId) {
-  return prisma.parentStudent.deleteMany({ where: { studentId, parentId } });
 }

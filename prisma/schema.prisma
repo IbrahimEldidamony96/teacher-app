@@ -9,10 +9,10 @@ datasource db {
 
 // ───────────── Enums ─────────────
 
-// TEACHER = the tutor (full access). PARENT = sees only their own children.
+// One teacher with full access. Students can access only their own records.
 enum Role {
   TEACHER
-  PARENT
+  STUDENT
 }
 
 enum GradeLevel {
@@ -88,17 +88,18 @@ enum ClassroomMessageKind {
 
 // ───────────── People ─────────────
 
-// People who log in (via Clerk): the tutor and parents
+// People who log in (via Clerk): one tutor and individually approved students
 model User {
   id        String   @id @default(cuid())
   clerkId   String   @unique
   email     String   @unique
   name      String
-  role      Role     @default(PARENT)
+  role      Role     @default(STUDENT)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  children           ParentStudent[]
+  studentProfile     Student? @relation("StudentAccount")
+  children           ParentStudent[] // Legacy links kept for historical data; no authorization use.
   classrooms         ClassroomSession[]
   claimedInvitations ParentInvitation[]
   checkoutOrders     CheckoutOrder[]
@@ -106,9 +107,12 @@ model User {
   @@index([role])
 }
 
-// Students are records the tutor manages; they don't need accounts
+// A managed student record optionally linked to exactly one verified Clerk account.
 model Student {
   id          String     @id @default(cuid())
+  loginEmail  String?    @unique
+  userId      String?    @unique
+  account     User?      @relation("StudentAccount", fields: [userId], references: [id], onDelete: SetNull)
   name        String
   gradeLevel  GradeLevel
   parentPhone String?
@@ -134,6 +138,8 @@ model Student {
   @@index([gradeLevel])
 }
 
+// Historical parent links retained temporarily for a non-destructive migration.
+// These must never grant access to student records.
 model ParentStudent {
   id        String @id @default(cuid())
   parentId  String

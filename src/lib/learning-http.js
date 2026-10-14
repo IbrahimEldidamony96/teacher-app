@@ -1,12 +1,12 @@
 import { getCurrentUser } from "@/lib/auth";
 import { LearningError, learningAssert } from "@/lib/learning-policy";
-import { getParentHomework } from "@/lib/data/homework";
+import { getHomeworkForStudent } from "@/lib/data/homework";
 import { prisma } from "@/lib/prisma";
 import { checkClassroomOrigin } from "@/lib/classroom-http";
 
 export async function learningUser(role = null) {
   const user = await getCurrentUser();
-  learningAssert(user, "سجّل الدخول أولاً.", 401);
+  learningAssert(user, "سجّل الدخول بحساب طالب مرتبط أولاً.", 401);
   learningAssert(!role || user.role === role, "غير مسموح.", 403);
   return user;
 }
@@ -14,8 +14,9 @@ export async function learningUser(role = null) {
 export async function authorizeHomeworkFile(user, homeworkId, studentId) {
   const homework = user.role === "TEACHER"
     ? await prisma.homework.findUnique({ where: { id: homeworkId }, select: { id: true } })
-    : user.role === "PARENT" && typeof studentId === "string" && studentId
-      ? await getParentHomework(user.id, homeworkId, studentId) : null;
+    : user.role === "STUDENT" && user.studentProfile?.id &&
+      (!studentId || user.studentProfile.id === studentId)
+      ? await getHomeworkForStudent(user.studentProfile.id, homeworkId) : null;
   learningAssert(homework, "الواجب غير متاح.", 404);
   return homework;
 }

@@ -31,6 +31,14 @@ export async function getClassroomActor(sessionId) {
     });
     if (session) return { role: "TEACHER", sessionId, userId: user.id, name: user.name };
   }
+  if (user?.role === "STUDENT" && user.studentProfile?.id) {
+    const participant = await prisma.classroomParticipant.findFirst({
+      where: { sessionId, studentId: user.studentProfile.id, student: { archivedAt: null },
+        session: { group: { archivedAt: null, enrollments: { some: { studentId: user.studentProfile.id, endedAt: null } } } } },
+      select: { id: true },
+    });
+    if (participant) return { role: "STUDENT", sessionId, participantId: participant.id, studentId: user.studentProfile.id, name: user.name };
+  }
   const token = (await cookies()).get(classroomCookieName(sessionId))?.value;
   return actorFromClassroomInvite(sessionId, token);
 }
