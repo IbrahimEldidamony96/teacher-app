@@ -125,7 +125,7 @@ export async function createStudentAction(_previousState, formData) {
       groupId: groupId || undefined,
     });
   } catch (error) {
-    if (groupId && (error?.code === "P2025" || error?.code === "P2003")) {
+    if (groupId && ["P2025", "P2003", "GROUP_ARCHIVED", "GROUP_MISSING"].includes(error?.code)) {
       return { message: "المجموعة مش موجودة. اختار مجموعة تانية.", existingStudentId: null };
     }
     throw error;

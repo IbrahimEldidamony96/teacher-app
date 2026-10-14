@@ -47,12 +47,12 @@ export default async function AttendanceSheetPage({ params, searchParams }) {
       </div>
 
       {/* Pick another date (GET form: reloads this page with ?date=) */}
-      <form method="get" className="flex flex-wrap items-end gap-3">
+      <form method="get" className="ui-form flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
           التاريخ
           <input type="date" name="date" defaultValue={date} max={today} required className={input} />
         </label>
-        <button type="submit" className="rounded border border-gray-400 px-4 py-2 text-sm">
+        <button type="submit" className="ui-button-secondary">
           عرض
         </button>
       </form>
@@ -70,7 +70,7 @@ export default async function AttendanceSheetPage({ params, searchParams }) {
       )}
 
       {session.students.length === 0 ? (
-        <p className="text-gray-500">
+        <p className="ui-empty">
           مفيش طلاب في المجموعة دي. ضيفهم من{" "}
           <Link href={`/teacher/groups/${session.group.id}`} className="underline">
             صفحة المجموعة
@@ -89,7 +89,7 @@ export default async function AttendanceSheetPage({ params, searchParams }) {
             هيتبعت واتساب تلقائي لولي أمر أي طالب غايب، وتذكير اشتراك لو لسه ما دفعش شهر ده (مرة واحدة بس في الشهر).
           </p>
 
-          <ul className="divide-y divide-gray-300 rounded border border-gray-300">
+          <ul className="ui-card divide-y divide-gray-200">
             {session.students.map((s) => (
               <li key={s.id} className="space-y-2 px-4 py-3">
                 <input type="hidden" name="studentId" value={s.id} />

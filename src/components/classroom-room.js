@@ -233,7 +233,7 @@ export default function ClassroomRoom({ initialState, iceServers, localOnly = fa
       {media.error && <p role="alert" className="text-sm text-red-600">{media.error}</p>}
       {info && <p role="status" className="text-sm text-green-600">{info}</p>}
 
-      <section className="space-y-3 rounded-xl border border-gray-300 p-4">
+      <section className="ui-panel space-y-3">
         <h2 className="font-semibold">{state.session.mode === "LIVE" ? "الفيديو المباشر" : "تسجيل الحصة"}</h2>
         {state.session.mode === "RECORDING" ? (
           state.session.videoUrl ? <video ref={videoRef} src={state.session.videoUrl} controls playsInline preload="metadata" data-testid="recorded-video" className="aspect-video w-full rounded-xl bg-black" />
@@ -245,7 +245,7 @@ export default function ClassroomRoom({ initialState, iceServers, localOnly = fa
           {media.localStream && !ended && <ClassroomStream stream={media.localStream} muted videoRef={videoRef} testId="teacher-local-video" />}
           {!ended && <div className="flex flex-wrap gap-3">
             {!media.localStream && <button className={button} disabled={busy} onClick={startVideo}>{busy ? "جاري الفتح..." : state.session.status === "ACTIVE" ? "استئناف البث" : "فتح الكاميرا وبدء البث"}</button>}
-            {media.localStream && <button className="rounded border border-gray-400 px-3 py-2 text-sm" onClick={() => { media.toggleMicrophone(); setMicMuted((value) => !value); }}>{micMuted ? "تشغيل الميكروفون" : "كتم الميكروفون"}</button>}
+            {media.localStream && <button className="ui-button-secondary" onClick={() => { media.toggleMicrophone(); setMicMuted((value) => !value); }}>{micMuted ? "تشغيل الميكروفون" : "كتم الميكروفون"}</button>}
             {media.localStream && active && <button className={button} disabled={busy || inviting} onClick={inviteGroup}>
               {inviting ? "جاري إرسال الدعوات..." : "إرسال دعوات واتساب لكل طلاب المجموعة"}
             </button>}
@@ -260,7 +260,7 @@ export default function ClassroomRoom({ initialState, iceServers, localOnly = fa
         {teacher && !ended && <button className={dangerButton} disabled={busy} onClick={endSession}>إنهاء الجلسة</button>}
       </section>
 
-      {!teacher && joined && !ended && <button className="rounded border border-blue-400 px-4 py-2 text-sm text-blue-600" disabled={!active} onClick={async () => {
+      {!teacher && joined && !ended && <button className="ui-button-secondary text-blue-600" disabled={!active} onClick={async () => {
         try { await action({ action: "hand", raised: !state.self?.handRaised }); }
         catch (failure) { setProblem(failure.message); }
       }}>{state.self?.handRaised ? "إنزال اليد" : "رفع اليد لطلب سؤال"}</button>}
@@ -271,7 +271,7 @@ export default function ClassroomRoom({ initialState, iceServers, localOnly = fa
         <ClassroomHeadcount videoRef={videoRef} videoUrl={state.session.videoUrl} enabled={Boolean(state.session.videoUrl || (media.localStream && !ended))}
           count={state.session.headcountEstimate} samples={state.session.headcountSamples} save={action} />
         <ClassroomAttendance roster={state.roster} mode={state.session.mode} date={state.session.date} confirmedAt={state.session.attendanceConfirmedAt} save={action} />
-        <section className="space-y-3 rounded-xl border border-gray-300 p-4">
+        <section className="ui-panel space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">دعوات الطلاب ({state.roster.length})</h2>
             <button className="text-xs text-blue-600 underline" disabled={busy || inviting} onClick={async () => {
               try { await action({ action: "refreshRoster" }); setInfo("اتحدثت قائمة الطلاب."); }

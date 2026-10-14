@@ -1,26 +1,50 @@
 import { prisma } from "@/lib/prisma";
-import { toDbDate } from "@/lib/time";
+import { toDbDate, isValidDateString } from "@/lib/time";
 import { examStats } from "@/lib/grades";
 import { notifyExamGrade } from "@/lib/notify";
+import { learningAssert } from "@/lib/learning-policy";
+
+function validateExam({ title, date, maxScore }) {
+  learningAssert(typeof title === "string" && title.trim().length > 0 && title.length <= 200, "اكتب عنوان اختبار لا يزيد عن ٢٠٠ حرف.");
+  learningAssert(isValidDateString(date), "تاريخ الاختبار مش مظبوط.");
+  learningAssert(Number.isFinite(maxScore) && maxScore > 0, "الدرجة الكاملة لازم تكون أكبر من صفر.");
+}
 
 export async function listExams(groupId = null) {
   const exams = await prisma.exam.findMany({
     where: groupId ? { groupId } : {},
     include: {
-      group: { select: { id: true, name: true } },
-      results: { select: { score: true } },
+      group: { select: { id: true, name: true, enrollments: { where: { endedAt: null, student: { archivedAt: null } }, select: { studentId: true } } } },
+      results: { select: { score: true, studentId: true } },
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: 100,
   });
-  return exams.map((e) => ({ ...e, stats: examStats(e.results.map((r) => r.score), e.maxScore) }));
+  return exams.map((e) => {
+    const active = new Set(e.group.enrollments.map((member) => member.studentId));
+    return { ...e, stats: examStats(e.results.filter((r) => active.has(r.studentId)).map((r) => r.score), e.maxScore) };
+  });
 }
 
 export async function createExam({ groupId, title, date, maxScore }) {
-  const group = await prisma.studyGroup.findUnique({ where: { id: groupId }, select: { id: true } });
-  if (!group) throw new Error("المجموعة مش موجودة.");
+  validateExam({ title, date, maxScore });
+  const group = await prisma.studyGroup.findUnique({ where: { id: groupId }, select: { id: true, archivedAt: true } });
+  if (!group || group.archivedAt) throw new Error("المجموعة مش موجودة أو مؤرشفة.");
 
   return prisma.exam.create({ data: { groupId, title, date: toDbDate(date), maxScore } });
+}
+
+export async function updateExam(examId, { title, date, maxScore }) {
+  validateExam({ title, date, maxScore });
+  return prisma.$transaction(async (tx) => {
+    // The same row lock is held when grades are saved, so a concurrent grade
+    // cannot exceed a newly reduced maximum.
+    const rows = await tx.$queryRaw`SELECT "id" FROM "Exam" WHERE "id" = ${examId} FOR UPDATE`;
+    learningAssert(rows.length > 0, "الاختبار مش موجود.", 404);
+    const scores = await tx.examResult.aggregate({ where: { examId }, _max: { score: true } });
+    learningAssert(scores._max.score == null || maxScore >= scores._max.score, `الدرجة الكاملة أقل من درجة مسجلة (${scores._max.score}). عدّل الدرجات الأول.`);
+    return tx.exam.update({ where: { id: examId }, data: { title: title.trim(), date: toDbDate(date), maxScore } });
+  });
 }
 
 export function deleteExam(examId) {
@@ -31,12 +55,13 @@ export async function getExamSheet(examId) {
   const exam = await prisma.exam.findUnique({
     where: { id: examId },
     include: {
-      results: true,
+      results: { include: { student: { select: { name: true } } } },
       group: {
         select: {
           id: true,
           name: true,
           enrollments: {
+            where: { endedAt: null, student: { archivedAt: null } },
             select: { student: { select: { id: true, name: true } } },
             orderBy: { student: { name: "asc" } },
           },
@@ -47,6 +72,7 @@ export async function getExamSheet(examId) {
   if (!exam) return null;
 
   const byStudent = new Map(exam.results.map((r) => [r.studentId, r]));
+  const active = new Set(exam.group.enrollments.map(({ student }) => student.id));
   return {
     exam: {
       id: exam.id,
@@ -56,7 +82,8 @@ export async function getExamSheet(examId) {
       groupId: exam.group.id,
       groupName: exam.group.name,
     },
-    stats: examStats(exam.results.map((r) => r.score), exam.maxScore),
+    stats: examStats(exam.results.filter((r) => active.has(r.studentId)).map((r) => r.score), exam.maxScore),
+    previousStudents: exam.results.filter((r) => !active.has(r.studentId)).map((r) => ({ id: r.studentId, name: r.student.name, score: r.score })),
     students: exam.group.enrollments.map(({ student }) => {
       const result = byStudent.get(student.id);
       return {
@@ -76,47 +103,46 @@ export async function getExamSheet(examId) {
 //   score given     -> saved
 //   blank, not absent -> any saved result is removed (not entered yet)
 export async function saveExamResults(examId, entries) {
-  const exam = await prisma.exam.findUnique({
+  const exam = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Exam" WHERE "id" = ${examId} FOR UPDATE`;
+    const exam = await tx.exam.findUnique({
     where: { id: examId },
     select: { groupId: true, maxScore: true, title: true },
   });
   if (!exam) throw new Error("الاختبار مش موجود.");
 
   const ids = [...new Set(entries.map((e) => e.studentId))];
-  const enrolled = await prisma.enrollment.findMany({
-    where: { groupId: exam.groupId, studentId: { in: ids } },
+  learningAssert(ids.length === entries.length, "الطالب مكرر في قائمة الدرجات.");
+  const enrolled = await tx.enrollment.findMany({
+    where: { groupId: exam.groupId, studentId: { in: ids }, endedAt: null, student: { archivedAt: null } },
     select: { studentId: true },
   });
   if (enrolled.length !== ids.length) throw new Error("فيه طالب مش في المجموعة دي.");
 
-  const ops = [];
   for (const e of entries) {
     const key = { examId_studentId: { examId, studentId: e.studentId } };
 
     if (e.absent) {
-      ops.push(
-        prisma.examResult.upsert({
+      await tx.examResult.upsert({
           where: key,
           update: { score: null, note: e.note },
           create: { examId, studentId: e.studentId, score: null, note: e.note },
-        })
-      );
+      });
     } else if (e.score !== null) {
       if (!Number.isFinite(e.score) || e.score < 0 || e.score > exam.maxScore) {
         throw new Error(`الدرجة لازم تكون بين 0 و ${exam.maxScore}.`);
       }
-      ops.push(
-        prisma.examResult.upsert({
+      await tx.examResult.upsert({
           where: key,
           update: { score: e.score, note: e.note },
           create: { examId, studentId: e.studentId, score: e.score, note: e.note },
-        })
-      );
+      });
     } else {
-      ops.push(prisma.examResult.deleteMany({ where: { examId, studentId: e.studentId } }));
+      await tx.examResult.deleteMany({ where: { examId, studentId: e.studentId } });
     }
   }
-  await prisma.$transaction(ops);
+    return exam;
+  });
 
   // Notify only the students who actually got a numeric score (not absent, not left blank).
   // notifyExamGrade only ever sends once per (exam, student) - editing a score later won't re-notify.

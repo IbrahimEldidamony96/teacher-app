@@ -98,8 +98,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  children ParentStudent[]
-  classrooms ClassroomSession[]
+  children           ParentStudent[]
+  classrooms         ClassroomSession[]
+  claimedInvitations ParentInvitation[]
+  checkoutOrders     CheckoutOrder[]
 
   @@index([role])
 }
@@ -112,16 +114,22 @@ model Student {
   parentPhone String?
   notes       String?
   createdAt   DateTime   @default(now())
+  archivedAt  DateTime?
 
   parents     ParentStudent[]
   enrollments Enrollment[]
   attendance  AttendanceRecord[]
   payments    Payment[]
 
-  homeworkResults HomeworkResult[]
-  examResults     ExamResult[]
-  notifications   Notification[]
+  homeworkResults       HomeworkResult[]
+  examResults           ExamResult[]
+  notifications         Notification[]
   classroomParticipants ClassroomParticipant[]
+  charges               MonthlyCharge[]
+  parentInvitations     ParentInvitation[]
+  homeworkSubmissions   HomeworkSubmission[]
+  checkoutOrders        CheckoutOrder[]
+  quizAttempts          QuizAttempt[]
 
   @@index([gradeLevel])
 }
@@ -146,6 +154,7 @@ model StudyGroup {
   gradeLevel GradeLevel
   monthlyFee Int        @default(0) // EGP per month
   createdAt  DateTime   @default(now())
+  archivedAt DateTime?
 
   enrollments Enrollment[]
   slots       WeeklySlot[]
@@ -154,16 +163,20 @@ model StudyGroup {
   homework    Homework[]
   exams       Exam[]
   classrooms  ClassroomSession[]
+  charges     MonthlyCharge[]
+  exceptions  ScheduleException[]
+  quizzes     Quiz[]
 
   @@index([gradeLevel])
 }
 
 model Enrollment {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   studentId  String
   groupId    String
   monthlyFee Int? // overrides the group fee for this student (e.g. sibling discount)
-  joinedAt   DateTime @default(now())
+  joinedAt   DateTime  @default(now())
+  endedAt    DateTime?
 
   student Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -181,7 +194,8 @@ model WeeklySlot {
   endTime   String // "17:00"
   location  String?
 
-  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group      StudyGroup          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  exceptions ScheduleException[]
 
   @@index([groupId])
   @@index([day, startTime])
@@ -196,7 +210,8 @@ model AttendanceRecord {
   date      DateTime         @db.Date
   status    AttendanceStatus
   note      String?
-  createdAt DateTime         @default(now())
+
+  createdAt DateTime @default(now())
 
   student Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -208,14 +223,16 @@ model AttendanceRecord {
 // Payments toward a month's subscription. Several partial payments per month are allowed;
 // "who paid" is derived by comparing the month's total against the student's fee.
 model Payment {
-  id        String        @id @default(cuid())
-  studentId String
-  groupId   String?
-  month     String // "2026-09"
-  amount    Int // EGP
-  method    PaymentMethod @default(CASH)
-  paidAt    DateTime      @default(now())
-  note      String?
+  id                String        @id @default(cuid())
+  studentId         String
+  groupId           String?
+  month             String // "2026-09"
+  amount            Int // EGP
+  method            PaymentMethod @default(CASH)
+  paidAt            DateTime      @default(now())
+  note              String?
+  kind              String        @default("PAYMENT")
+  providerReference String?       @unique
 
   student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   group   StudyGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
@@ -235,8 +252,10 @@ model Homework {
   dueDate     DateTime @db.Date
   createdAt   DateTime @default(now())
 
-  group   StudyGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  results HomeworkResult[]
+  group       StudyGroup           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  results     HomeworkResult[]
+  attachments HomeworkAttachment[]
+  submissions HomeworkSubmission[]
 
   @@index([groupId, dueDate])
 }
@@ -291,16 +310,25 @@ model ExamResult {
 // notification twice - e.g. one payment reminder per student per month, one
 // absence message per attendance record, one grade message per exam result.
 model Notification {
-  id      String           @id @default(cuid())
-  student Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId String
-  type    NotificationType
-  refId   String // meaning depends on type: attendanceRecordId, "YYYY-MM", homeworkId, or examId
-  status  String // "sent" | "failed" | "skipped_no_phone" | "skipped_not_configured"
-  error   String?
-  createdAt DateTime @default(now())
+  id                String           @id @default(cuid())
+  student           Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId         String
+  type              NotificationType
+  refId             String // meaning depends on type: attendanceRecordId, "YYYY-MM", homeworkId, or examId
+  status            String // "sent" | "failed" | "skipped_no_phone" | "skipped_not_configured"
+  error             String?
+  createdAt         DateTime         @default(now())
+  providerMessageId String?          @unique
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  template          String?
+  params            Json?
+  scheduledAt       DateTime?
+  attempts          Int              @default(0)
+  dedupeKey         String?          @unique
 
   @@index([studentId, type, refId])
+  @@index([status, scheduledAt])
 }
 
 // A group lesson with private roster invitations, video and two-way questions.
@@ -319,7 +347,7 @@ model ClassroomSession {
   headcountEstimate     Int?
   headcountSamples      Int             @default(0)
   teacherConnectionId   String?
-  teacherLastSeenAt      DateTime?
+  teacherLastSeenAt     DateTime?
   startedAt             DateTime?
   endedAt               DateTime?
   attendanceConfirmedAt DateTime?
@@ -346,8 +374,8 @@ model ClassroomParticipant {
   connectionId    String?
   handRaised      Boolean   @default(false)
 
-  session  ClassroomSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  student  Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  session  ClassroomSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student  Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   sent     ClassroomMessage[] @relation("ClassroomSender")
   received ClassroomMessage[] @relation("ClassroomRecipient")
 
@@ -391,4 +419,148 @@ model ClassroomSignal {
 
   @@index([sessionId, toPeer, id])
   @@index([createdAt])
+}
+
+// Amounts are immutable snapshots. Editing a fee changes subsequent months.
+model MonthlyCharge {
+  id        String     @id @default(cuid())
+  studentId String
+  groupId   String
+  month     String
+  amount    Int
+  groupName String
+  createdAt DateTime   @default(now())
+  student   Student    @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, groupId, month])
+  @@index([month, groupId])
+}
+
+model ScheduleException {
+  id              String      @id @default(cuid())
+  groupId         String
+  slotId          String?
+  date            DateTime    @db.Date
+  kind            String
+  replacementDate DateTime?   @db.Date
+  startTime       String?
+  endTime         String?
+  location        String?
+  reason          String?
+  createdAt       DateTime    @default(now())
+  group           StudyGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  slot            WeeklySlot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
+
+  @@unique([slotId, date])
+  @@index([date, groupId])
+  @@index([replacementDate])
+}
+
+model ParentInvitation {
+  id          String    @id @default(cuid())
+  studentId   String
+  email       String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  claimedAt   DateTime?
+  claimedById String?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  claimedBy   User?     @relation(fields: [claimedById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt])
+}
+
+model HomeworkAttachment {
+  id         String   @id @default(cuid())
+  homeworkId String
+  filePath   String
+  fileName   String
+  fileMime   String
+  fileSize   Int
+  createdAt  DateTime @default(now())
+  homework   Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+
+  @@index([homeworkId])
+}
+
+model HomeworkSubmission {
+  id          String   @id @default(cuid())
+  homeworkId  String
+  studentId   String
+  body        String?
+  filePath    String?
+  fileName    String?
+  fileMime    String?
+  fileSize    Int?
+  submittedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  homework    Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([homeworkId, studentId])
+  @@index([studentId])
+}
+
+model CheckoutOrder {
+  id                    String   @id @default(cuid())
+  studentId             String
+  userId                String
+  month                 String
+  amount                Int
+  status                String   @default("PENDING")
+  providerOrderId       String?  @unique
+  providerTransactionId String?  @unique
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  student               Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+}
+
+model Quiz {
+  id          String         @id @default(cuid())
+  groupId     String
+  title       String
+  description String?
+  opensAt     DateTime
+  closesAt    DateTime
+  published   Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  group       StudyGroup     @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  questions   QuizQuestion[]
+  attempts    QuizAttempt[]
+
+  @@index([groupId, opensAt])
+}
+
+model QuizQuestion {
+  id           String @id @default(cuid())
+  quizId       String
+  prompt       String
+  options      Json
+  correctIndex Int
+  points       Int    @default(1)
+  position     Int
+  quiz         Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, position])
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  quizId      String
+  studentId   String
+  answers     Json
+  score       Int
+  maxScore    Int
+  submittedAt DateTime @default(now())
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Restrict)
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([quizId, studentId])
+  @@index([studentId])
 }

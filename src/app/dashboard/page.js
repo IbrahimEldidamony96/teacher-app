@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import AppShell from "@/components/app-shell";
+import AppIcon from "@/components/app-icon";
 import { requireUser } from "@/lib/auth";
 import { getTodaySlots, listChildrenSchedules } from "@/lib/data/timetable";
 import { getAttendanceCountsForDate, listChildrenAttendance } from "@/lib/data/attendance";
@@ -14,16 +15,24 @@ import GradesSummary from "@/components/grades-summary";
 import { listChildrenHomework } from "@/lib/data/homework";
 import { listChildrenExams } from "@/lib/data/exams";
 
-const linkClass =
-  "inline-block rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700";
+const shortcuts = [
+  ["groups", "المجموعات"],
+  ["students", "الطلاب"],
+  ["attendance", "الحضور"],
+  ["classrooms", "حصص الفيديو", "video"],
+  ["payments", "الاشتراكات"],
+  ["homework", "الواجبات"],
+  ["exams", "الدرجات"],
+  ["schedule", "جدول الأسبوع", "calendar"],
+];
 
 function statusOf(slot, time, isNext) {
   if (slot.startTime <= time && time < slot.endTime) {
-    return { label: "دلوقتي", cls: "bg-green-600 text-white" };
+    return { label: "دلوقتي", cls: "bg-emerald-50 text-emerald-700" };
   }
-  if (slot.endTime <= time) return { label: "خلصت", cls: "bg-gray-500/20 text-gray-500" };
-  if (isNext) return { label: "الجاية", cls: "bg-blue-600 text-white" };
-  return { label: "لسه", cls: "bg-gray-500/20" };
+  if (slot.endTime <= time) return { label: "خلصت", cls: "bg-slate-100 text-slate-600" };
+  if (isNext) return { label: "الجاية", cls: "bg-blue-50 text-blue-700" };
+  return { label: "لسه", cls: "bg-slate-100 text-slate-600" };
 }
 
 async function TeacherHome() {
@@ -36,20 +45,39 @@ async function TeacherHome() {
   ]);
   const owing = totals.counts.UNPAID + totals.counts.PARTIAL;
   const nextIndex = slots.findIndex((s) => s.startTime > time);
+  const paidRate = totals.due > 0 ? Math.min(100, Math.max(0, (totals.paid / totals.due) * 100)) : 0;
 
   return (
     <>
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">حصص النهاردة ({DAY_LABELS[day]})</h2>
+      <div className="dashboard-stats">
+        <div className="ui-panel dashboard-stat">
+          <span className="dashboard-icon"><AppIcon name="calendar" size={22} /></span>
+          <div><p className="text-xs text-gray-500">حصص النهاردة</p><strong className="dashboard-stat-value">{slots.length} <span className="text-sm font-normal text-gray-500">حصة</span></strong></div>
+        </div>
+        <div className="ui-panel dashboard-stat">
+          <span className="dashboard-icon dashboard-icon-teal"><AppIcon name="payments" size={22} /></span>
+          <div><p className="text-xs text-gray-500">المحصّل هذا الشهر</p><strong className="dashboard-stat-value">{egp(totals.paid)}</strong></div>
+        </div>
+        <div className="ui-panel dashboard-stat">
+          <span className="dashboard-icon dashboard-icon-amber"><AppIcon name="students" size={22} /></span>
+          <div><p className="text-xs text-gray-500">الاشتراكات المتبقية</p><strong className="dashboard-stat-value">{egp(totals.remaining)}</strong></div>
+        </div>
+      </div>
+
+      <section className="ui-panel">
+        <div className="dashboard-section-title">
+          <h2 className="text-lg font-bold">حصص النهاردة <span className="text-sm font-normal text-gray-500">({DAY_LABELS[day]})</span></h2>
+          <Link href="/teacher/schedule" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">جدول الأسبوع <AppIcon name="arrow" size={16} /></Link>
+        </div>
         {slots.length === 0 ? (
-          <p className="text-gray-500">مفيش حصص النهاردة.</p>
+          <p className="ui-empty">مفيش حصص النهاردة.</p>
         ) : (
           <ul className="space-y-2">
             {slots.map((slot, i) => {
               const status = statusOf(slot, time, i === nextIndex);
               const count = recorded.get(slot.group.id) ?? 0;
               return (
-                <li key={slot.id} className="rounded border border-gray-300 p-3">
+                <li key={slot.id} className="dashboard-lesson">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <Link
@@ -66,13 +94,14 @@ async function TeacherHome() {
                         {slot.location && ` - ${slot.location}`}
                       </span>
                     </div>
-                    <span className={`shrink-0 rounded px-2 py-1 text-xs ${status.cls}`}>
+                    <span className={`ui-badge shrink-0 ${status.cls}`}>
                       {status.label}
                     </span>
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <Link href={`/teacher/attendance/${slot.group.id}`} className={linkClass}>
+                    <Link href={`/teacher/attendance/${slot.group.id}`} className="ui-button">
+                      <AppIcon name="attendance" size={16} />
                       تسجيل الحضور
                     </Link>
                     {count > 0 ? (
@@ -88,11 +117,11 @@ async function TeacherHome() {
         )}
       </section>
 
-      <section className="space-y-2 rounded border border-gray-300 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold">اشتراكات {formatMonth(month)}</h2>
-          <Link href="/teacher/payments" className="text-sm text-blue-600 underline">
-            التفاصيل
+      <section className="ui-panel space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-bold">اشتراكات {formatMonth(month)}</h2>
+          <Link href="/teacher/payments" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
+            التفاصيل <AppIcon name="arrow" size={16} />
           </Link>
         </div>
         <p className="text-sm">
@@ -100,31 +129,21 @@ async function TeacherHome() {
           <strong className="text-red-500">{egp(totals.remaining)}</strong>
           {owing > 0 && <span className="text-gray-500"> ({owing} طالب لسه)</span>}
         </p>
+        <div className="ui-progress" role="meter" aria-label="نسبة تحصيل الاشتراكات" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(paidRate)}>
+          <span className="ui-progress-fill" style={{ width: `${paidRate}%` }} />
+        </div>
       </section>
 
-      <div className="flex flex-wrap gap-3">
-        <Link href="/teacher/groups" className={linkClass}>
-          المجموعات
-        </Link>
-        <Link href="/teacher/students" className={linkClass}>
-          الطلاب
-        </Link>
-        <Link href="/teacher/attendance" className={linkClass}>
-          الحضور
-        </Link>
-        <Link href="/teacher/payments" className={linkClass}>
-          الاشتراكات
-        </Link>
-        <Link href="/teacher/homework" className={linkClass}>
-          الواجبات
-        </Link>
-        <Link href="/teacher/exams" className={linkClass}>
-          الدرجات
-        </Link>
-        <Link href="/teacher/schedule" className={linkClass}>
-          جدول الأسبوع
-        </Link>
-      </div>
+      <section>
+        <h2 className="mb-4 text-lg font-bold">وصول سريع</h2>
+        <div className="dashboard-shortcuts">
+          {shortcuts.map(([path, label, icon]) => (
+            <Link key={path} href={`/teacher/${path}`} className="dashboard-shortcut">
+              <AppIcon name={icon ?? path} />{label}
+            </Link>
+          ))}
+        </div>
+      </section>
     </>
   );
 }
@@ -140,7 +159,7 @@ async function ParentHome({ user }) {
 
   if (children.length === 0) {
     return (
-      <p className="text-gray-500">
+      <p className="ui-empty">
         لسه مفيش أبناء مربوطين بحسابك. كلّم المدرس علشان يربطهم بيك.
       </p>
     );
@@ -149,7 +168,7 @@ async function ParentHome({ user }) {
   return (
     <div className="space-y-10">
       {children.map(({ student, slots }) => (
-        <section key={student.id} className="space-y-4">
+        <section key={student.id} className="ui-panel space-y-6">
           <h2 className="text-lg font-semibold">
             {student.name}{" "}
             <span className="text-sm font-normal text-gray-500">
@@ -192,12 +211,17 @@ export default async function DashboardPage() {
   const user = await requireUser();
 
   return (
-    <main className="mx-auto max-w-3xl space-y-8 p-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">أهلًا {user.name}</h1>
-        <UserButton />
-      </header>
-      {user.role === "TEACHER" ? <TeacherHome /> : <ParentHome user={user} />}
-    </main>
+    <AppShell teacher={user.role === "TEACHER"}>
+      <div className="space-y-7">
+        <header className="dashboard-welcome">
+          <div>
+            <p className="mb-1 text-sm text-gray-500">{user.role === "TEACHER" ? "كل تفاصيل يومك في مكان واحد" : "تابع رحلة أبنائك الدراسية"}</p>
+            <h1>أهلًا {user.name} <span className="text-blue-600">،</span></h1>
+          </div>
+          <span className="dashboard-date"><AppIcon name="calendar" size={18} />{DAY_LABELS[cairoNow().day]} · {formatMonth(cairoMonth())}</span>
+        </header>
+        {user.role === "TEACHER" ? <TeacherHome /> : <ParentHome user={user} />}
+      </div>
+    </AppShell>
   );
 }

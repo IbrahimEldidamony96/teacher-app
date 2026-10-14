@@ -26,6 +26,8 @@ import {
   deletePaymentAction,
 } from "@/app/teacher/actions";
 import { input, button, dangerButton, card } from "@/app/teacher/ui";
+import StudentEditForm from "../student-edit-form";
+import LifecycleForm from "../lifecycle-form";
 
 export default async function StudentPage({ params }) {
   await requireRole("TEACHER");
@@ -61,7 +63,11 @@ export default async function StudentPage({ params }) {
           </p>
         )}
         {student.notes && <p className="mt-1 text-sm text-gray-500">ملاحظات: {student.notes}</p>}
+        {student.archivedAt && <p className="mt-2 text-sm text-amber-600">الطالب مؤرشف. كل السجل محفوظ، والتسجيل الجديد متوقف لحد الاسترجاع.</p>}
       </div>
+
+      <StudentEditForm student={{ id: student.id, name: student.name, gradeLevel: student.gradeLevel, parentPhone: student.parentPhone, notes: student.notes }} />
+      <LifecycleForm recordId={student.id} archived={Boolean(student.archivedAt)} />
 
       {/* Groups */}
       <section className="space-y-3">
@@ -78,6 +84,7 @@ export default async function StudentPage({ params }) {
                   {e.group.name}
                 </Link>
                 <span className="text-sm text-gray-500">
+                  {e.endedAt && <span className="block">انتهى التسجيل: {formatDay(e.endedAt)}</span>}
                   {egp(e.monthlyFee ?? e.group.monthlyFee)}
                   {e.monthlyFee !== null && " (اشتراك خاص)"}
                 </span>
@@ -110,7 +117,7 @@ export default async function StudentPage({ params }) {
         <h2 className="text-lg font-semibold">الاشتراكات</h2>
         <PaymentHistory history={payments.history} />
 
-        <form action={recordPaymentAction} className="flex flex-wrap items-end gap-3">
+        <form action={recordPaymentAction} className="ui-form flex flex-wrap items-end gap-3">
           <input type="hidden" name="studentId" value={student.id} />
           <input type="hidden" name="returnTo" value={backTo} />
           <label className="flex flex-col gap-1 text-sm">

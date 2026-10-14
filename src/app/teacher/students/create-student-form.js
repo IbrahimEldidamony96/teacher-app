@@ -27,7 +27,7 @@ export default function CreateStudentForm({ groups }) {
     <form
       action={formAction}
       aria-busy={pending}
-      className="flex flex-wrap items-end gap-3"
+      className="ui-form flex flex-wrap items-end gap-3"
     >
       <label className="flex flex-col gap-1 text-sm">
         اسم الطالب

@@ -32,7 +32,7 @@ export default async function AttendanceIndexPage() {
       </p>
 
       {sorted.length === 0 ? (
-        <p className="text-gray-500">مفيش مجموعات لسه.</p>
+        <p className="ui-empty">مفيش مجموعات لسه.</p>
       ) : (
         <ul className={card}>
           {sorted.map((g) => {
@@ -51,12 +51,12 @@ export default async function AttendanceIndexPage() {
                   </span>
                   <span className="flex gap-2 text-xs">
                     {hasSessionToday.has(g.id) && (
-                      <span className="rounded bg-blue-500/15 px-2 py-1 text-blue-500">
+                      <span className="ui-badge bg-blue-50 text-blue-700">
                         حصة النهاردة
                       </span>
                     )}
                     {recorded > 0 && (
-                      <span className="rounded bg-green-600/15 px-2 py-1 text-green-600">
+                      <span className="ui-badge bg-emerald-50 text-emerald-700">
                         اتسجل النهاردة
                       </span>
                     )}

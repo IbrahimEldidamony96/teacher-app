@@ -1,97 +1,94 @@
 import { prisma } from "@/lib/prisma";
-import { cairoMonth, lastMonths } from "@/lib/time";
-import { buildMonthRows, summarize, buildHistory, dueForMonth, statusOf } from "@/lib/billing";
+import { cairoMonth, cairoMonthOf, isValidMonth, shiftMonth } from "@/lib/time";
+import { buildChargeRows, summarize, chargeHistory } from "@/lib/billing";
 import { notifyPaymentReminder } from "@/lib/notify";
 
-const enrollmentInclude = {
-  student: { select: { id: true, name: true } },
-  group: { select: { id: true, name: true, monthlyFee: true } },
-};
+export async function lockBilling(tx) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('teacher-billing', 0))`;
+}
 
-// Every student's due / paid / status for one month (optionally only one group's students)
+export async function snapshotCharges(tx, throughMonth = cairoMonth(), filter = {}) {
+  if (!isValidMonth(throughMonth)) throw new Error("الشهر غير صالح.");
+  const last = throughMonth > cairoMonth() ? cairoMonth() : throughMonth;
+  const enrollments = await tx.enrollment.findMany({ where: filter, include: { group: true } });
+  const data = [];
+  for (const e of enrollments) {
+    const end = e.endedAt && cairoMonthOf(e.endedAt) < last ? cairoMonthOf(e.endedAt) : last;
+    for (let month = cairoMonthOf(e.joinedAt); month <= end; month = shiftMonth(month, 1)) {
+      data.push({ studentId: e.studentId, groupId: e.groupId, month, amount: e.monthlyFee ?? e.group.monthlyFee, groupName: e.group.name });
+    }
+  }
+  if (data.length) await tx.monthlyCharge.createMany({ data, skipDuplicates: true });
+}
+
+async function prepareCharges() {
+  await prisma.$transaction(async (tx) => { await lockBilling(tx); await snapshotCharges(tx); }, { timeout: 30000 });
+}
+
+async function chargesAndPayments(studentId = null, throughMonth = cairoMonth()) {
+  await prepareCharges();
+  const where = { ...(studentId && { studentId }), month: { lte: throughMonth } };
+  const include = { student: { select: { id: true, name: true, archivedAt: true } } };
+  const [charges, payments] = await Promise.all([
+    prisma.monthlyCharge.findMany({ where, include }),
+    prisma.payment.findMany({ where, include, orderBy: { paidAt: "desc" } }),
+  ]);
+  if (throughMonth > cairoMonth()) {
+    const enrollments = await prisma.enrollment.findMany({ where: { ...(studentId && { studentId }), endedAt: null, student: { archivedAt: null }, group: { archivedAt: null } }, include: { student: include.student, group: true } });
+    for (let month = shiftMonth(cairoMonth(), 1); month <= throughMonth; month = shiftMonth(month, 1)) {
+      for (const e of enrollments) charges.push({ studentId: e.studentId, groupId: e.groupId, month, amount: e.monthlyFee ?? e.group.monthlyFee, groupName: e.group.name, student: e.student });
+    }
+  }
+  return { charges, payments };
+}
+
 export async function getMonthOverview(month, groupId = null) {
-  const [enrollments, payments] = await Promise.all([
-    prisma.enrollment.findMany({ include: enrollmentInclude }),
-    prisma.payment.findMany({ where: { month } }),
-  ]);
-
-  const rows = buildMonthRows(enrollments, payments, month, groupId);
-  return { rows, totals: summarize(rows) };
+  if (!isValidMonth(month)) throw new Error("الشهر غير صالح.");
+  const { charges, payments } = await chargesAndPayments(null, month);
+  const rows = buildChargeRows(charges, payments, month, groupId);
+  return { rows, totals: { ...summarize(rows), collected: rows.reduce((s, r) => s + r.collected, 0) }, estimated: month > cairoMonth() };
 }
 
-// Recent months' status plus the latest payments, for one student
-export async function getStudentPaymentHistory(studentId, monthsBack = 6) {
-  const [enrollments, payments] = await Promise.all([
-    prisma.enrollment.findMany({ where: { studentId }, include: enrollmentInclude }),
-    prisma.payment.findMany({ where: { studentId }, orderBy: { paidAt: "desc" } }),
-  ]);
-
-  return {
-    history: buildHistory(enrollments, payments, lastMonths(cairoMonth(), monthsBack)),
-    payments: payments.slice(0, 30),
-  };
+export async function getStudentPaymentHistory(studentId, monthsBack = 0) {
+  const { charges, payments } = await chargesAndPayments(studentId);
+  const all = chargeHistory(charges, payments).reverse();
+  return { history: monthsBack ? all.slice(0, monthsBack) : all, payments, charges };
 }
 
-// Only children linked to this parent are ever loaded. Returns Map(studentId -> history rows)
 export async function listChildrenPayments(parentId) {
-  const links = await prisma.parentStudent.findMany({
-    where: { parentId },
-    select: { studentId: true },
-  });
-  const pairs = await Promise.all(
-    links.map(async (l) => [l.studentId, (await getStudentPaymentHistory(l.studentId)).history])
-  );
-  return new Map(pairs);
+  const links = await prisma.parentStudent.findMany({ where: { parentId }, select: { studentId: true } });
+  return new Map(await Promise.all(links.map(async (l) => [l.studentId, (await getStudentPaymentHistory(l.studentId)).history])));
 }
 
-export async function recordPayment({ studentId, month, amount, method, note }) {
-  const student = await prisma.student.findUnique({
-    where: { id: studentId },
-    select: { enrollments: { select: { groupId: true } } },
-  });
-  if (!student) throw new Error("الطالب مش موجود.");
-
-  // Link the payment to a group only when it is unambiguous
-  const groupId = student.enrollments.length === 1 ? student.enrollments[0].groupId : null;
-
-  return prisma.payment.create({
-    data: { studentId, groupId, month, amount, method, note },
+export async function recordPayment({ studentId, month, amount, method, note, kind = "PAYMENT", providerReference = null }) {
+  if (!isValidMonth(month) || !Number.isSafeInteger(amount) || amount <= 0 || !["PAYMENT", "REFUND", "CREDIT"].includes(kind) || !["CASH", "WALLET", "INSTAPAY", "OTHER"].includes(method)) throw new Error("بيانات الدفعة غير صالحة.");
+  return prisma.$transaction(async (tx) => {
+    await lockBilling(tx);
+    await snapshotCharges(tx, cairoMonth(), { studentId });
+    const student = await tx.student.findUnique({ where: { id: studentId }, include: { enrollments: { where: { endedAt: null } } } });
+    if (!student) throw new Error("الطالب غير موجود.");
+    if (kind === "REFUND") {
+      const paid = await tx.payment.findMany({ where: { studentId, month } });
+      const refundable = paid.filter((p) => p.kind !== "CREDIT").reduce((s, p) => s + (p.kind === "REFUND" ? -p.amount : p.amount), 0);
+      if (amount > refundable) throw new Error("قيمة الاسترداد تتجاوز المدفوع لهذا الشهر.");
+    }
+    const groupId = student.enrollments.length === 1 ? student.enrollments[0].groupId : null;
+    return tx.payment.create({ data: { studentId, groupId, month, amount, method, note, kind, providerReference } });
   });
 }
 
-export function deletePayment(paymentId) {
-  return prisma.payment.deleteMany({ where: { id: paymentId } });
+export async function deletePayment(paymentId) {
+  return prisma.payment.deleteMany({ where: { id: paymentId, providerReference: null } });
 }
 
-// One student's due / paid / status for a single month - used by the attendance
-// flow to decide whether an automatic payment reminder should go out.
 export async function getStudentMonthStatus(studentId, month) {
-  const [enrollments, payments] = await Promise.all([
-    prisma.enrollment.findMany({ where: { studentId }, include: enrollmentInclude }),
-    prisma.payment.findMany({ where: { studentId, month } }),
-  ]);
-
-  const due = dueForMonth(enrollments, month);
-  const paid = payments.reduce((sum, p) => sum + p.amount, 0);
-  return { due, paid, remaining: Math.max(due - paid, 0), status: statusOf(due, paid) };
+  const { charges, payments } = await chargesAndPayments(studentId, month);
+  return buildChargeRows(charges, payments, month)[0] ?? { due: 0, paid: 0, remaining: 0, status: "PAID" };
 }
 
-// Manual "send reminder" button on the payments page - always sends, even if an
-// automatic reminder already went out this month.
 export async function sendManualPaymentReminder(studentId, month) {
-  const [student, status] = await Promise.all([
-    prisma.student.findUnique({ where: { id: studentId }, select: { name: true, parentPhone: true } }),
-    getStudentMonthStatus(studentId, month),
-  ]);
-  if (!student) throw new Error("الطالب مش موجود.");
-  if (!student.parentPhone) throw new Error("مفيش رقم تليفون لولي الأمر مسجل لهذا الطالب.");
-
-  await notifyPaymentReminder({
-    studentId,
-    studentPhone: student.parentPhone,
-    studentName: student.name,
-    month,
-    remaining: status.remaining,
-    force: true,
-  });
+  const [student, status] = await Promise.all([prisma.student.findUnique({ where: { id: studentId }, select: { name: true, parentPhone: true } }), getStudentMonthStatus(studentId, month)]);
+  if (!student?.parentPhone) throw new Error("لا يوجد رقم هاتف مسجل لولي الأمر.");
+  if (status.remaining <= 0) throw new Error("لا يوجد مبلغ مستحق لهذا الشهر.");
+  await notifyPaymentReminder({ studentId, studentPhone: student.parentPhone, studentName: student.name, month, remaining: status.remaining, force: true });
 }

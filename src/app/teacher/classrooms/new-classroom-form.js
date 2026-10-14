@@ -23,9 +23,9 @@ export default function NewClassroomForm({ groups, today }) {
     } catch (failure) { setError(failure.message); setBusy(false); }
   }
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-xl border border-gray-300 p-4">
+    <form onSubmit={submit} className="ui-form space-y-4">
       <h2 className="font-semibold">إنشاء حصة بالفيديو</h2>
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="ui-form-fields flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">عنوان الحصة<input name="title" required maxLength={160} className={input} disabled={busy} /></label>
         <label className="flex flex-col gap-1 text-sm">المجموعة<select name="groupId" required className={input} disabled={busy}><option value="">اختار المجموعة</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
         <label className="flex flex-col gap-1 text-sm">نوع الفيديو<select name="mode" defaultValue="LIVE" className={input} disabled={busy}><option value="LIVE">بث مباشر بالكاميرا</option><option value="RECORDING">رفع فيديو مسجل</option></select></label>

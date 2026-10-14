@@ -36,6 +36,8 @@ On **8 October 2026**, the read-only WhatsApp setup check again returned HTTP `4
 
 Focused ESLint passed for the updated WhatsApp setup script and tests. The user's subsequent classroom result reported five sent invitations, zero already sent, zero invalid phone numbers, and zero failures. This confirms successful provider acceptance of that batch; recipient delivery receipts were not independently checked.
 
+On **8 October 2026**, parent invitation failures were traced to the stopped public preview: the previous Cloudflare hostname no longer resolved even though localhost was running. The public preview was restarted at **https://specialist-momentum-helps-indicating.trycloudflare.com** and its configured invitation origin was updated. The launcher now allows 60 seconds for Windows process identification, fixing an observed 15-second startup timeout without weakening ownership checks. Both tracked preview processes are running; a real enrolled participant's invitation set a secure student cookie and opened the classroom, with the page and student API returning HTTP `200`. The production build, focused launcher ESLint, syntax check, and whitespace check passed. Previously sent WhatsApp messages retain their old hostname; renew affected student links with **رابط جديد** before sending the group invitations again. No replacement messages were sent during verification. This temporary address requires the computer and tunnel to stay online.
+
 Completed setup work:
 
 - Installed the declared application dependencies and added the ESLint and TypeScript dependencies required by the configuration.

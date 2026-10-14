@@ -31,7 +31,7 @@ export default async function HomeworkPage({ searchParams }) {
       </div>
 
       {groups.length === 0 ? (
-        <p className="text-gray-500">
+        <p className="ui-empty">
           محتاج تعمل مجموعة الأول من{" "}
           <Link href="/teacher/groups" className="underline">
             صفحة المجموعات
@@ -39,7 +39,7 @@ export default async function HomeworkPage({ searchParams }) {
           .
         </p>
       ) : (
-        <form action={createHomeworkAction} className="flex flex-wrap items-end gap-3">
+        <form action={createHomeworkAction} className="ui-form flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">
             المجموعة
             <select name="groupId" defaultValue={groupId} required className={input}>
@@ -52,7 +52,7 @@ export default async function HomeworkPage({ searchParams }) {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             عنوان الواجب
-            <input name="title" placeholder="تمارين ١ لحد ١٠" required className={input} />
+            <input name="title" placeholder="تمارين ١ لحد ١٠" maxLength={200} required className={input} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             التسليم لحد
@@ -60,7 +60,7 @@ export default async function HomeworkPage({ searchParams }) {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             تفاصيل (اختياري)
-            <input name="description" className={`${input} min-w-48`} />
+            <textarea name="description" maxLength={10000} rows={2} className={`${input} min-w-48`} />
           </label>
           <button type="submit" className={button}>
             إضافة واجب
@@ -74,7 +74,7 @@ export default async function HomeworkPage({ searchParams }) {
       )}
 
       {homework.length === 0 ? (
-        <p className="text-gray-500">مفيش واجبات لسه.</p>
+        <p className="ui-empty">مفيش واجبات لسه.</p>
       ) : (
         <ul className={card}>
           {homework.map((h) => {
@@ -93,7 +93,7 @@ export default async function HomeworkPage({ searchParams }) {
                     </span>
                   </span>
                   <span
-                    className={`shrink-0 rounded px-2 py-1 text-xs ${
+                    className={`ui-badge shrink-0 ${
                       checked === 0
                         ? "bg-gray-500/20 text-gray-500"
                         : checked < total

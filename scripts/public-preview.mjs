@@ -26,7 +26,7 @@ const execFileAsync = promisify(execFile);
 async function powershell(script) {
   const { stdout } = await execFileAsync("powershell.exe", [
     "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64"),
-  ], { windowsHide: true, timeout: 15_000, maxBuffer: 64_000 });
+  ], { windowsHide: true, timeout: 60_000, maxBuffer: 64_000 });
   return stdout.trim();
 }
 

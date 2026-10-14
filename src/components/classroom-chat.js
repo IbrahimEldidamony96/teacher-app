@@ -34,7 +34,7 @@ export default function ClassroomChat({ messages, roster = [], teacher, active, 
   }
 
   return (
-    <section className="space-y-4 rounded-xl border border-gray-300 p-4">
+    <section className="ui-panel space-y-4">
       <h2 className="font-semibold">الأسئلة والإجابات</h2>
       <p className="text-xs text-gray-500">{teacher ? "اسأل كل المجموعة أو طالباً محدداً، ورد على أسئلة الطلاب." : "أسئلتك وإجاباتك الخاصة تصل للمدرس. أسئلة المدرس للمجموعة تظهر هنا."}</p>
       {messages.length > 0 && more && <button type="button" onClick={older} disabled={historyBusy} className="text-xs text-blue-600 underline">{historyBusy ? "جاري العرض..." : "عرض رسائل أقدم"}</button>}

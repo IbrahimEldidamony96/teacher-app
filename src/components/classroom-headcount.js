@@ -101,7 +101,7 @@ export default function ClassroomHeadcount({ videoRef, videoUrl, enabled, count,
   }
 
   return (
-    <section className="space-y-3 rounded-xl border border-gray-300 p-4">
+    <section className="ui-panel space-y-3">
       <h2 className="font-semibold">تقدير العدد الظاهر في الفيديو</h2>
       <p className="text-sm text-gray-500">التحليل يجري على جهازك. العدد تقديري للأشخاص داخل إطار الكاميرا؛ راجع قائمة الطلاب لتأكيد الحضور.</p>
       <button type="button" disabled={!enabled || busy} onClick={analyze} className={button}>

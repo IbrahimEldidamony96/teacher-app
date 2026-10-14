@@ -11,5 +11,5 @@ export default async function StudentClassroomPage({ params }) {
   const actor = await getClassroomActor(sessionId);
   if (!actor) notFound();
   const state = await getClassroomState(actor);
-  return <main className="mx-auto max-w-4xl p-6"><ClassroomRoom key={`${sessionId}:${actor.participantId ?? "teacher"}`} initialState={state} iceServers={classroomIceServers()} /></main>;
+  return <main className="classroom-page app-content"><ClassroomRoom key={`${sessionId}:${actor.participantId ?? "teacher"}`} initialState={state} iceServers={classroomIceServers()} /></main>;
 }

@@ -1,33 +1,9 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { createServer } from "node:net";
 import { after, before, describe, it } from "node:test";
-import { startPrismaDevServer } from "@prisma/dev";
-import pg from "pg";
+import { isolatedDatabase } from "./isolated-database.mjs";
 
 // These tests never load .env or connect to the application's database.
 // Each run uses an independent, disposable PostgreSQL instance.
-async function availablePorts(count) {
-  const reservations = [];
-  try {
-    for (let index = 0; index < count; index += 1) {
-      const reservation = createServer();
-      await new Promise((resolve, reject) => {
-        reservation.once("error", reject);
-        reservation.listen(0, "127.0.0.1", resolve);
-      });
-      reservations.push(reservation);
-    }
-    return reservations.map((reservation) => reservation.address().port);
-  } finally {
-    await Promise.all(
-      reservations.map(
-        (reservation) => new Promise((resolve) => reservation.close(resolve))
-      )
-    );
-  }
-}
-
 describe("student creation", { concurrency: false }, () => {
   let server;
   let prisma;
@@ -35,28 +11,9 @@ describe("student creation", { concurrency: false }, () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
 
   before(async () => {
-    const [port, databasePort, shadowDatabasePort, streamsPort] = await availablePorts(4);
-    server = await startPrismaDevServer({
-      name: `teacher-app-student-tests-${process.pid}-${Date.now()}`,
-      persistenceMode: "stateless",
-      port,
-      databasePort,
-      shadowDatabasePort,
-      streamsPort,
-    });
-
-    process.env.DATABASE_URL = server.database.connectionString;
-    const initializer = new pg.Client({ connectionString: process.env.DATABASE_URL });
-    try {
-      await initializer.connect();
-      const migration = await readFile(
-        new URL("../prisma/migrations/20261005000000_init/migration.sql", import.meta.url),
-        "utf8"
-      );
-      await initializer.query(migration);
-    } finally {
-      await initializer.end();
-    }
+    const isolated = await isolatedDatabase("student-tests");
+    server = isolated.server;
+    process.env.DATABASE_URL = isolated.connectionString;
 
     ({ prisma } = await import("../src/lib/prisma.js"));
     ({ createStudent } = await import("../src/lib/data/students.js"));

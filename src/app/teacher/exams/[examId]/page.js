@@ -5,6 +5,7 @@ import { getExamSheet } from "@/lib/data/exams";
 import { formatDate, formatScore } from "@/lib/labels";
 import { saveExamAction, deleteExamAction } from "@/app/teacher/actions";
 import { input, button, dangerButton } from "@/app/teacher/ui";
+import EditExamForm from "../edit-exam-form";
 
 export default async function ExamSheetPage({ params, searchParams }) {
   await requireRole("TEACHER");
@@ -24,7 +25,7 @@ export default async function ExamSheetPage({ params, searchParams }) {
         <div className="mt-2 flex flex-wrap items-start justify-between gap-2">
           <div>
             <h1 className="text-2xl font-semibold">{sheet.exam.title}</h1>
-            <p className="text-gray-500">
+            <p className="text-sm text-gray-500">
               {sheet.exam.groupName} - {formatDate(sheet.exam.date)} - الدرجة الكاملة{" "}
               {formatScore(sheet.exam.maxScore)}
             </p>
@@ -49,9 +50,10 @@ export default async function ExamSheetPage({ params, searchParams }) {
       {saved && (
         <p className="rounded bg-green-600/15 px-4 py-3 text-sm text-green-600">اتحفظت الدرجات.</p>
       )}
+      <EditExamForm exam={sheet.exam} />
 
       {sheet.students.length === 0 ? (
-        <p className="text-gray-500">مفيش طلاب في المجموعة دي.</p>
+        <p className="ui-empty">مفيش طلاب في المجموعة دي.</p>
       ) : (
         <form action={saveExamAction} className="space-y-4">
           <input type="hidden" name="examId" value={sheet.exam.id} />
@@ -102,6 +104,10 @@ export default async function ExamSheetPage({ params, searchParams }) {
           </button>
         </form>
       )}
+      {sheet.previousStudents.length > 0 && <section className="ui-panel space-y-3">
+        <h2 className="font-semibold">درجات الطلاب السابقين</h2>
+        <ul className="space-y-2 text-sm">{sheet.previousStudents.map((s) => <li key={s.id}>{s.name} · {s.score === null ? "غايب" : `${formatScore(s.score)} من ${formatScore(sheet.exam.maxScore)}`}</li>)}</ul>
+      </section>}
     </div>
   );
 }

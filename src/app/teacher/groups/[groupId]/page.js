@@ -57,7 +57,7 @@ export default async function GroupPage({ params }) {
       </div>
 
       {/* Edit group */}
-      <form action={updateGroupAction} className="flex flex-wrap items-end gap-3">
+      <form action={updateGroupAction} className="ui-form flex flex-wrap items-end gap-3">
         <input type="hidden" name="groupId" value={group.id} />
         <label className="flex flex-col gap-1 text-sm">
           اسم المجموعة
@@ -84,7 +84,7 @@ export default async function GroupPage({ params }) {
         <h2 className="text-lg font-semibold">الطلاب ({group.enrollments.length})</h2>
 
         {available.length > 0 ? (
-          <form action={enrollStudentAction} className="flex flex-wrap items-end gap-3">
+          <form action={enrollStudentAction} className="ui-form flex flex-wrap items-end gap-3">
             <input type="hidden" name="groupId" value={group.id} />
             <label className="flex flex-col gap-1 text-sm">
               الطالب
@@ -151,7 +151,7 @@ export default async function GroupPage({ params }) {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">مواعيد الحصص</h2>
 
-        <form action={addSlotAction} className="flex flex-wrap items-end gap-3">
+        <form action={addSlotAction} className="ui-form flex flex-wrap items-end gap-3">
           <input type="hidden" name="groupId" value={group.id} />
           <label className="flex flex-col gap-1 text-sm">
             اليوم

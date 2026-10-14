@@ -54,14 +54,14 @@ export default async function PaymentsPage({ searchParams }) {
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href={href({ month: shiftMonth(month, -1), group, status })}
-          className="rounded border border-gray-400 px-3 py-1 text-sm"
+          className="ui-button-secondary"
         >
           الشهر اللي فات
         </Link>
         <span className="text-lg font-medium">{formatMonth(month)}</span>
         <Link
           href={href({ month: shiftMonth(month, 1), group, status })}
-          className="rounded border border-gray-400 px-3 py-1 text-sm"
+          className="ui-button-secondary"
         >
           الشهر الجاي
         </Link>
@@ -73,7 +73,7 @@ export default async function PaymentsPage({ searchParams }) {
       </div>
 
       {/* Group filter (GET form) */}
-      <form method="get" className="flex flex-wrap items-end gap-3">
+      <form method="get" className="ui-form flex flex-wrap items-end gap-3">
         <input type="hidden" name="month" value={month} />
         {status !== "all" && <input type="hidden" name="status" value={status} />}
         <label className="flex flex-col gap-1 text-sm">
@@ -87,7 +87,7 @@ export default async function PaymentsPage({ searchParams }) {
             ))}
           </select>
         </label>
-        <button type="submit" className="rounded border border-gray-400 px-4 py-2 text-sm">
+        <button type="submit" className="ui-button-secondary">
           تصفية
         </button>
       </form>
@@ -98,15 +98,15 @@ export default async function PaymentsPage({ searchParams }) {
 
       {/* Summary */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded border border-gray-300 p-3">
+        <div className="ui-panel">
           <div className="text-sm text-gray-500">المطلوب</div>
           <div className="text-xl font-semibold">{egp(totals.due)}</div>
         </div>
-        <div className="rounded border border-gray-300 p-3">
+        <div className="ui-panel">
           <div className="text-sm text-gray-500">اتحصّل</div>
           <div className="text-xl font-semibold text-green-600">{egp(totals.paid)}</div>
         </div>
-        <div className="rounded border border-gray-300 p-3">
+        <div className="ui-panel">
           <div className="text-sm text-gray-500">المتبقي</div>
           <div className="text-xl font-semibold text-red-500">{egp(totals.remaining)}</div>
         </div>
@@ -132,7 +132,7 @@ export default async function PaymentsPage({ searchParams }) {
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-gray-500">مفيش طلاب هنا للشهر ده.</p>
+        <p className="ui-empty">مفيش طلاب هنا للشهر ده.</p>
       ) : (
         <ul className={card}>
           {rows.map((r) => (
@@ -149,7 +149,7 @@ export default async function PaymentsPage({ searchParams }) {
                     {egp(r.paid)} من {egp(r.due)}
                     {r.paid > r.due && ` (زيادة ${egp(r.paid - r.due)})`}
                   </span>
-                  <span className={`rounded px-2 py-1 text-xs ${PAYMENT_STATUS_BADGE[r.status]}`}>
+                  <span className={`ui-badge ${PAYMENT_STATUS_BADGE[r.status]}`}>
                     {PAYMENT_STATUS_LABELS[r.status]}
                   </span>
                 </div>
@@ -188,7 +188,7 @@ export default async function PaymentsPage({ searchParams }) {
                   <input type="hidden" name="returnTo" value={here} />
                   <button
                     type="submit"
-                    className="rounded border border-gray-400 px-3 py-1 text-xs hover:bg-gray-500/10"
+                    className="ui-button-secondary text-xs"
                   >
                     ابعت تذكير واتساب
                   </button>

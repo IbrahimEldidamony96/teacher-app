@@ -93,6 +93,10 @@ npm run public:start
 
 A new tunnel has a new hostname. Copy or send fresh invitations after restarting. Keep the computer online during the lesson.
 
+If an already-sent WhatsApp invitation points to a stopped tunnel, its message still contains the old hostname. Refresh the teacher classroom after the preview starts. For automatic WhatsApp delivery, click **رابط جديد** for each affected student, then **إرسال دعوات واتساب لكل طلاب المجموعة**. Renewing a link invalidates that student's old invitation and permits a fresh send; changing the hostname alone does not bypass send deduplication. Alternatively, **نسخ الدعوة** gives the current public link for manual sharing without rotating the student's token.
+
+On October 8, 2026, the previous preview's server and tunnel were stopped, and its hostname no longer resolved. The launcher now allows 60 seconds for Windows process identification, preventing the observed 15-second startup timeout while retaining process ownership checks. After restarting, both tracked processes were running and an existing enrolled student's invitation redirected to the public classroom with a secure cookie; the classroom page and student API both returned HTTP `200`. No replacement WhatsApp messages were sent during recovery. Cloudflare Quick Tunnel hostnames change on restart and stop working when the tunnel stops; see [Cloudflare's Quick Tunnel documentation](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
+
 ## 4. Send invitations
 
 When using Meta's test sending number, add each test recipient in the app's **WhatsApp → API Setup** page. Under **To**, open **Manage phone numbers** and add the parent's WhatsApp number with its country code. The owner of that number must complete Meta's verification. For Egyptian numbers, `010…` becomes `+2010…`. Error `131030` indicates the recipient is absent from the test allowlist; correcting the sender ID or access token does not add recipients. Check that the Arabic invitation template is `APPROVED` before retrying. Test-recipient verification and template approval are separate setup steps.

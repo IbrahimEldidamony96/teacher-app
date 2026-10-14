@@ -31,7 +31,7 @@ export default async function ExamsPage({ searchParams }) {
       </div>
 
       {groups.length === 0 ? (
-        <p className="text-gray-500">
+        <p className="ui-empty">
           محتاج تعمل مجموعة الأول من{" "}
           <Link href="/teacher/groups" className="underline">
             صفحة المجموعات
@@ -39,7 +39,7 @@ export default async function ExamsPage({ searchParams }) {
           .
         </p>
       ) : (
-        <form action={createExamAction} className="flex flex-wrap items-end gap-3">
+        <form action={createExamAction} className="ui-form flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">
             المجموعة
             <select name="groupId" defaultValue={groupId} required className={input}>
@@ -52,7 +52,7 @@ export default async function ExamsPage({ searchParams }) {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             اسم الاختبار
-            <input name="title" placeholder="اختبار الشهر" required className={input} />
+            <input name="title" placeholder="اختبار الشهر" maxLength={200} required className={input} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             التاريخ
@@ -77,7 +77,7 @@ export default async function ExamsPage({ searchParams }) {
       )}
 
       {exams.length === 0 ? (
-        <p className="text-gray-500">مفيش اختبارات لسه.</p>
+        <p className="ui-empty">مفيش اختبارات لسه.</p>
       ) : (
         <ul className={card}>
           {exams.map((e) => (
