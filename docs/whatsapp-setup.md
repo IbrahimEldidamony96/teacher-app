@@ -1,6 +1,6 @@
 # Enable classroom invitations on WhatsApp
 
-The app supports sending each enrolled student's private classroom link to their saved parent phone. Automatic delivery needs your WhatsApp Cloud API account and an approved template. Run `npm run whatsapp:setup` to check the current configuration.
+The app supports sending each enrolled student's private classroom link to their student's saved phone. Automatic delivery needs your WhatsApp Cloud API account and an approved template. Run `npm run whatsapp:setup` to check the current configuration.
 
 The user requires automatic delivery to the entire group. Copying invitations or opening a prefilled WhatsApp conversation requires a separate manual send and does not meet that requirement. The October 8, 2026 read-only setup check verified that Arabic `classroom_invitation` is `APPROVED`, compatible, and ready. The user subsequently reported five successful invitation sends and zero failures. Those results confirm provider acceptance; recipient delivery receipts were not independently checked. General use requires completing setup of the intended business sender. A managed provider can offer a different onboarding interface, but its template workflow can still require Meta approval; see [Twilio's notification template guide](https://www.twilio.com/docs/whatsapp/tutorial/send-whatsapp-notification-messages-templates).
 
@@ -99,8 +99,8 @@ On October 8, 2026, the previous preview's server and tunnel were stopped, and i
 
 ## 4. Send invitations
 
-When using Meta's test sending number, add each test recipient in the app's **WhatsApp → API Setup** page. Under **To**, open **Manage phone numbers** and add the parent's WhatsApp number with its country code. The owner of that number must complete Meta's verification. For Egyptian numbers, `010…` becomes `+2010…`. Error `131030` indicates the recipient is absent from the test allowlist; correcting the sender ID or access token does not add recipients. Check that the Arabic invitation template is `APPROVED` before retrying. Test-recipient verification and template approval are separate setup steps.
+When using Meta's test sending number, add each test recipient in the app's **WhatsApp → API Setup** page. Under **To**, open **Manage phone numbers** and add the student's WhatsApp number with its country code. The owner of that number must complete Meta's verification. For Egyptian numbers, `010…` becomes `+2010…`. Error `131030` indicates the recipient is absent from the test allowlist; correcting the sender ID or access token does not add recipients. Check that the Arabic invitation template is `APPROVED` before retrying. Test-recipient verification and template approval are separate setup steps.
 
-Sign in as the teacher, open the classroom, and start the live camera. Click **إرسال دعوات واتساب لكل طلاب المجموعة**. The app shows progress and each student's result. Invalid or missing Egyptian parent phone numbers are skipped. Successful sends are not repeated for the same invitation; failed sends can be retried.
+Sign in as the teacher, open the classroom, and start the live camera. Click **إرسال دعوات واتساب لكل طلاب المجموعة**. The app shows progress and each student's result. Invalid or missing Egyptian student phone numbers are skipped. Successful sends are not repeated for the same invitation; failed sends can be retried.
 
 Until the account and template are ready, use **نسخ الدعوة** beside each student and share that private link manually. Copying a link does not send a message.
