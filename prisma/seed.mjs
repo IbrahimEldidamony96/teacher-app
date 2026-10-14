@@ -36,7 +36,7 @@ async function main() {
   }
 
   if (reset) {
-    // Children first. Real accounts (tutor and parents who signed up) are kept.
+    // Children first. Real accounts (tutor and students who signed up) are kept.
     await prisma.$transaction([
       prisma.notification.deleteMany(),
       prisma.examResult.deleteMany(),
@@ -47,7 +47,6 @@ async function main() {
       prisma.attendanceRecord.deleteMany(),
       prisma.weeklySlot.deleteMany(),
       prisma.enrollment.deleteMany(),
-      prisma.parentStudent.deleteMany(),
       prisma.studyGroup.deleteMany(),
       prisma.student.deleteMany(),
       prisma.user.deleteMany({ where: { clerkId: { startsWith: "seed_" } } }),
@@ -66,8 +65,8 @@ async function main() {
   });
 
   // Students
-  const mk = (name, gradeLevel, parentPhone) =>
-    prisma.student.create({ data: { name, gradeLevel, parentPhone } });
+  const mk = (name, gradeLevel, studentPhone) =>
+    prisma.student.create({ data: { name, gradeLevel, studentPhone } });
 
   const adam = await mk("آدم محمود", "PRIMARY_1", "01000000001");
   const laila = await mk("ليلى أحمد", "PRIMARY_1", "01000000002");
@@ -229,7 +228,7 @@ async function main() {
   });
 
   console.log(
-    "Seeded: 3 groups, 8 students, weekly sessions, 2 placeholder parents, attendance for 2 sessions per group, payments for this month, homework (checked + upcoming), exams with grades."
+    "Seeded: 3 groups, 8 students, weekly sessions, student records, attendance for 2 sessions per group, payments for this month, homework (checked + upcoming), exams with grades."
   );
 }
 

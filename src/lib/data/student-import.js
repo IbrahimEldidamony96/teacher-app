@@ -6,7 +6,7 @@ import { studentIdentity, studentError } from "@/lib/student-validation";
 
 export async function previewStudentImport(source) {
   const rows = parseStudentCsv(source);
-  const existing = await prisma.student.findMany({ select: { id: true, name: true, parentPhone: true, archivedAt: true } });
+  const existing = await prisma.student.findMany({ select: { id: true, name: true, studentPhone: true, archivedAt: true } });
   const identities = new Map(existing.map((student) => [studentIdentity(student), student]).filter(([key]) => key));
   return rows.map((row) => {
     const match = identities.get(studentIdentity(row));
@@ -28,7 +28,7 @@ export async function importStudents(source, groupId = null) {
     for (const row of sorted) await lockStudentIdentity(tx, row);
     let created = 0, skipped = 0;
     for (const row of rows) {
-      const result = await createStudentInTransaction(tx, { name: row.name, gradeLevel: row.gradeLevel, parentPhone: row.parentPhone, notes: row.notes, groupId });
+      const result = await createStudentInTransaction(tx, { name: row.name, gradeLevel: row.gradeLevel, studentPhone: row.studentPhone, notes: row.notes, groupId });
       if (result.created) created += 1;
       else skipped += 1;
     }

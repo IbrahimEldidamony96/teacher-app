@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { normalizeParentPhone, normalizeStudentName } from "@/lib/student-identity";
+import { normalizeStudentPhone, normalizeStudentName } from "@/lib/student-identity";
 import { studentError, studentIdentity } from "@/lib/student-validation";
 import { lockBilling } from "@/lib/data/payments";
 
@@ -19,7 +19,7 @@ export async function getStudentRoster({ search = "", gradeLevel = "", groupId =
     ...(archived === "all" ? {} : { archivedAt: archived === "archived" ? { not: null } : null }),
     ...(gradeLevel ? { gradeLevel } : {}),
     ...(groupId ? { enrollments: { some: { groupId, endedAt: null } } } : {}),
-    ...(search ? { OR: [{ name: { contains: search, mode: "insensitive" } }, { parentPhone: { contains: normalizeParentPhone(search) || search } }] } : {}),
+    ...(search ? { OR: [{ name: { contains: search, mode: "insensitive" } }, { studentPhone: { contains: normalizeStudentPhone(search) || search } }] } : {}),
   };
   const total = await prisma.student.count({ where });
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -57,17 +57,17 @@ export async function findStudentIdentity(tx, input, excludeId = null) {
   if (!identity) return null;
   const candidates = await tx.student.findMany({
     where: excludeId ? { id: { not: excludeId } } : {},
-    select: { id: true, name: true, parentPhone: true, archivedAt: true },
+    select: { id: true, name: true, studentPhone: true, archivedAt: true },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   return candidates.find((student) => studentIdentity(student) === identity) ?? null;
 }
 
-export async function createStudentInTransaction(tx, { name, gradeLevel, parentPhone, notes, groupId }) {
+export async function createStudentInTransaction(tx, { name, gradeLevel, studentPhone, notes, groupId }) {
   const normalizedName = normalizeStudentName(name);
-  const normalizedPhone = normalizeParentPhone(parentPhone);
-  await lockStudentIdentity(tx, { name: normalizedName, parentPhone: normalizedPhone });
-  const existing = await findStudentIdentity(tx, { name: normalizedName, parentPhone: normalizedPhone });
+  const normalizedPhone = normalizeStudentPhone(studentPhone);
+  await lockStudentIdentity(tx, { name: normalizedName, studentPhone: normalizedPhone });
+  const existing = await findStudentIdentity(tx, { name: normalizedName, studentPhone: normalizedPhone });
   if (existing) return { created: false, student: { id: existing.id } };
   if (groupId) {
     const group = await tx.studyGroup.findUnique({ where: { id: groupId }, select: { archivedAt: true } });
@@ -78,7 +78,7 @@ export async function createStudentInTransaction(tx, { name, gradeLevel, parentP
       data: {
         name: normalizedName,
         gradeLevel,
-        parentPhone: normalizedPhone,
+        studentPhone: normalizedPhone,
         notes,
         ...(groupId && {
           enrollments: { create: { group: { connect: { id: groupId } } } },

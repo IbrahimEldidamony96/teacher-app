@@ -99,9 +99,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   studentProfile     Student? @relation("StudentAccount")
-  children           ParentStudent[] // Legacy links kept for historical data; no authorization use.
   classrooms         ClassroomSession[]
-  claimedInvitations ParentInvitation[]
   checkoutOrders     CheckoutOrder[]
 
   @@index([role])
@@ -115,12 +113,11 @@ model Student {
   account     User?      @relation("StudentAccount", fields: [userId], references: [id], onDelete: SetNull)
   name        String
   gradeLevel  GradeLevel
-  parentPhone String?
+  studentPhone String? // Enter the student\u0027s number only; do not copy parent numbers.
   notes       String?
   createdAt   DateTime   @default(now())
   archivedAt  DateTime?
 
-  parents     ParentStudent[]
   enrollments Enrollment[]
   attendance  AttendanceRecord[]
   payments    Payment[]
@@ -130,26 +127,11 @@ model Student {
   notifications         Notification[]
   classroomParticipants ClassroomParticipant[]
   charges               MonthlyCharge[]
-  parentInvitations     ParentInvitation[]
   homeworkSubmissions   HomeworkSubmission[]
   checkoutOrders        CheckoutOrder[]
   quizAttempts          QuizAttempt[]
 
   @@index([gradeLevel])
-}
-
-// Historical parent links retained temporarily for a non-destructive migration.
-// These must never grant access to student records.
-model ParentStudent {
-  id        String @id @default(cuid())
-  parentId  String
-  studentId String
-
-  parent  User    @relation(fields: [parentId], references: [id], onDelete: Cascade)
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([parentId, studentId])
-  @@index([studentId])
 }
 
 // ───────────── Groups & schedule ─────────────
@@ -461,22 +443,6 @@ model ScheduleException {
   @@unique([slotId, date])
   @@index([date, groupId])
   @@index([replacementDate])
-}
-
-model ParentInvitation {
-  id          String    @id @default(cuid())
-  studentId   String
-  email       String
-  tokenHash   String    @unique
-  expiresAt   DateTime
-  claimedAt   DateTime?
-  claimedById String?
-  revokedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  claimedBy   User?     @relation(fields: [claimedById], references: [id], onDelete: SetNull)
-
-  @@index([studentId, createdAt])
 }
 
 model HomeworkAttachment {
