@@ -20,7 +20,7 @@ export default function HomeworkSubmissionForm({ homeworkId, studentId, submissi
     if (file?.size > HOMEWORK_FILE_LIMIT) return setError("حجم الملف أكبر من ١٠ ميجابايت.");
     setBusy(true);
     try {
-      const response = await fetch(`/api/homework/${homeworkId}/submissions?student=${encodeURIComponent(studentId)}`, { method: "POST", body: data });
+      const response = await fetch(`/api/homework/${homeworkId}/submissions`, { method: "POST", body: data });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "تعذر حفظ التسليم.");
       setSaved(true);

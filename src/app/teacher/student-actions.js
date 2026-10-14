@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
-import { updateStudent } from "@/lib/data/students";
+import { updateStudent, setStudentLoginEmail } from "@/lib/data/students";
 import { setStudentArchived, setGroupArchived, bulkEnrollStudents } from "@/lib/data/roster-lifecycle";
 import { previewStudentImport, importStudents } from "@/lib/data/student-import";
 import { validateStudentInput } from "@/lib/student-validation";
@@ -19,12 +19,12 @@ export async function updateStudentAction(_previous, formData) {
   await requireRole("TEACHER");
   const studentId = text(formData, "studentId");
   if (!studentId) return { message: "الطالب مطلوب.", success: false };
-  const { data, errors } = validateStudentInput(Object.fromEntries(["name", "gradeLevel", "parentPhone", "notes"].map((key) => [key, text(formData, key)])));
+  const { data, errors } = validateStudentInput(Object.fromEntries(["name", "gradeLevel", "studentPhone", "notes"].map((key) => [key, text(formData, key)])));
   if (errors.length) return { message: errors.join(" "), success: false };
   let result;
   try { result = await updateStudent(studentId, data); }
   catch (error) { return failure(error); }
-  if (!result.updated) return { message: "فيه طالب تاني بنفس الاسم ورقم ولي الأمر.", existingStudentId: result.existingStudentId, success: false };
+  if (!result.updated) return { message: "فيه طالب تاني بنفس الاسم ورقم الطالب.", existingStudentId: result.existingStudentId, success: false };
   refresh();
   return { message: "اتحفظت بيانات الطالب.", success: true };
 }
@@ -87,4 +87,21 @@ export async function importStudentsAction(_previous, formData) {
   catch (error) { return failure(error); }
   refresh();
   return { message: `اتضاف ${result.created} طالب واتخطّى ${result.skipped} طالب مسجل بالفعل.`, success: true, completed: true };
+}
+
+export async function setStudentLoginEmailAction(_previous, formData) {
+  await requireRole("TEACHER");
+  const studentId = text(formData, "studentId");
+  if (!studentId) return { message: "الطالب مطلوب.", success: false };
+  try {
+    await setStudentLoginEmail(studentId, text(formData, "loginEmail"));
+    refresh();
+    return { message: "اتحفظ البريد الإلكتروني للطالب.", success: true };
+  } catch (error) {
+    if (error?.code === "P2002") return { message: "الإيميل ده مستخدم لطالب تاني بالفعل.", success: false };
+    if (error?.message === "اكتب بريد إلكتروني صحيح للطالب." || error?.message === "البريد الإلكتروني مخصص لحساب المدرس.") {
+      return { message: error.message, success: false };
+    }
+    return { message: "تعذّر حفظ الحساب. راجع البيانات وحاول تاني.", success: false };
+  }
 }

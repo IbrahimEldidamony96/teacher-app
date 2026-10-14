@@ -20,7 +20,7 @@ export async function availablePorts(count) {
   }
 }
 
-export async function isolatedDatabase(label) {
+export async function isolatedDatabase(label, { stopBeforeMigration = null } = {}) {
   const [port, databasePort, shadowDatabasePort, streamsPort] = await availablePorts(4);
   const server = await startPrismaDevServer({
     name: `teacher-app-${label}-${process.pid}-${Date.now()}`,
@@ -33,6 +33,7 @@ export async function isolatedDatabase(label) {
     const root = new URL("../prisma/migrations/", import.meta.url);
     const directories = (await readdir(root, { withFileTypes: true })).filter((row) => row.isDirectory()).map((row) => row.name).sort();
     for (const directory of directories) {
+      if (stopBeforeMigration && directory >= stopBeforeMigration) break;
       await db.query(await readFile(new URL(`${directory}/migration.sql`, root), "utf8"));
     }
   } catch (error) {

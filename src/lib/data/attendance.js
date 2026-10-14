@@ -77,7 +77,7 @@ async function sendAttendanceNotifications({ groupId, dateStr, records }) {
     prisma.studyGroup.findUnique({ where: { id: groupId }, select: { name: true } }),
     prisma.student.findMany({
       where: { id: { in: records.map((r) => r.studentId) } },
-      select: { id: true, name: true, parentPhone: true },
+      select: { id: true, name: true, studentPhone: true },
     }),
   ]);
   const studentById = new Map(students.map((s) => [s.id, s]));
@@ -93,7 +93,7 @@ async function sendAttendanceNotifications({ groupId, dateStr, records }) {
         tasks.push(
           notifyAbsence({
             studentId: student.id,
-            studentPhone: student.parentPhone,
+            studentPhone: student.studentPhone,
             studentName: student.name,
             groupName: group.name,
             date: record.date,
@@ -106,7 +106,7 @@ async function sendAttendanceNotifications({ groupId, dateStr, records }) {
           if (s.status === "PAID") return;
           return notifyPaymentReminder({
             studentId: student.id,
-            studentPhone: student.parentPhone,
+            studentPhone: student.studentPhone,
             studentName: student.name,
             month,
             remaining: s.remaining,
@@ -158,13 +158,3 @@ export async function getStudentAttendance(studentId, limit = 15) {
   };
 }
 
-// Only children linked to this parent are ever loaded
-export async function listChildrenAttendance(parentId) {
-  const links = await prisma.parentStudent.findMany({
-    where: { parentId },
-    select: { studentId: true },
-  });
-  return Promise.all(
-    links.map(async (l) => [l.studentId, await getStudentAttendance(l.studentId)])
-  ).then((pairs) => new Map(pairs));
-}

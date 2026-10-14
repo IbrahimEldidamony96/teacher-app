@@ -2,7 +2,7 @@ import { validateStudentInput, studentIdentity, studentError } from "@/lib/stude
 
 export const STUDENT_CSV_LIMIT = 200_000;
 export const STUDENT_IMPORT_LIMIT = 500;
-export const STUDENT_CSV_TEMPLATE = "name,gradeLevel,parentPhone,notes\nSample Student,PRIMARY_1,01000000000,\n";
+export const STUDENT_CSV_TEMPLATE = "name,gradeLevel,studentPhone,notes\nSample Student,PRIMARY_1,01000000000,\n";
 
 // RFC 4180 quoting, including commas and newlines inside spreadsheet cells.
 export function parseStudentCsv(source) {
@@ -41,9 +41,9 @@ export function parseStudentCsv(source) {
   if (cell || row.length || afterQuote) finishRow();
   if (records.length < 2) throw studentError("أضف أسماء الطلاب بعد صف عناوين الأعمدة.");
   const headers = records.shift().map((value) => value.trim());
-  const allowed = ["name", "gradeLevel", "parentPhone", "notes"];
+  const allowed = ["name", "gradeLevel", "studentPhone", "notes"];
   if (!headers.includes("name") || !headers.includes("gradeLevel") || new Set(headers).size !== headers.length || headers.some((value) => !allowed.includes(value))) {
-    throw studentError("عناوين الأعمدة: name,gradeLevel,parentPhone,notes. الاسم والصف مطلوبين.");
+    throw studentError("عناوين الأعمدة: name,gradeLevel,studentPhone,notes. الاسم والصف مطلوبين.");
   }
   const seen = new Set();
   return records.map((values, index) => {
@@ -51,7 +51,7 @@ export function parseStudentCsv(source) {
     const { data, errors } = validateStudentInput(raw);
     if (values.length !== headers.length) errors.push("عدد الخلايا مختلف عن عناوين الأعمدة.");
     const identity = studentIdentity(data);
-    if (identity && seen.has(identity)) errors.push("نفس الاسم ورقم ولي الأمر مكرر في الملف.");
+    if (identity && seen.has(identity)) errors.push("نفس الاسم ورقم الطالب مكرر في الملف.");
     if (identity) seen.add(identity);
     return { row: index + 2, ...data, errors };
   });

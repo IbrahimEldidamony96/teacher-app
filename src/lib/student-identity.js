@@ -2,7 +2,7 @@ export function normalizeStudentName(name) {
   return name.normalize("NFKC").trim().replace(/\s+/gu, " ");
 }
 
-export function normalizeParentPhone(phone) {
+export function normalizeStudentPhone(phone) {
   const digits = (phone ?? "")
     .normalize("NFKC")
     .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))

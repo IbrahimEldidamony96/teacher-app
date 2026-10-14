@@ -150,7 +150,7 @@ export async function saveExamResults(examId, entries) {
   if (graded.length > 0) {
     const students = await prisma.student.findMany({
       where: { id: { in: graded.map((e) => e.studentId) } },
-      select: { id: true, name: true, parentPhone: true },
+      select: { id: true, name: true, studentPhone: true },
     });
     const studentById = new Map(students.map((s) => [s.id, s]));
 
@@ -160,7 +160,7 @@ export async function saveExamResults(examId, entries) {
         if (!student) return Promise.resolve();
         return notifyExamGrade({
           studentId: student.id,
-          studentPhone: student.parentPhone,
+          studentPhone: student.studentPhone,
           studentName: student.name,
           examTitle: exam.title,
           score: e.score,
@@ -192,14 +192,3 @@ export async function getStudentExams(studentId, limit = 15) {
   }));
 }
 
-// Only children linked to this parent are ever loaded. Returns Map(studentId -> exam rows)
-export async function listChildrenExams(parentId) {
-  const links = await prisma.parentStudent.findMany({
-    where: { parentId },
-    select: { studentId: true },
-  });
-  const pairs = await Promise.all(
-    links.map(async (l) => [l.studentId, await getStudentExams(l.studentId)])
-  );
-  return new Map(pairs);
-}

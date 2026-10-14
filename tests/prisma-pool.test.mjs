@@ -13,6 +13,20 @@ describe("Prisma PostgreSQL pool configuration", () => {
       assert.deepEqual(prismaPgPoolConfig(connectionString), { connectionString, max: 1 });
     }
   });
+  it("limits driver connections per Vercel instance for Neon pooled endpoints", () => {
+    assert.deepEqual(
+      prismaPgPoolConfig("postgresql://example:secret@ep-hello-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"),
+      {
+        connectionString: "postgresql://example:secret@ep-hello-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require",
+        max: 3,
+        idleTimeoutMillis: 10000,
+        connectionTimeoutMillis: 10000,
+      },
+    );
+    const direct = "postgresql://example:secret@ep-hello.us-east-1.aws.neon.tech/neondb?sslmode=require";
+    assert.deepEqual(prismaPgPoolConfig(direct), { connectionString: direct });
+  });
+
   it("keeps default pooling for external databases and other local databases", () => {
     for (const connectionString of [
       "postgres://db.example.invalid:51214/template1",

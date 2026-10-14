@@ -32,7 +32,7 @@ export async function POST(request, { params }) {
     attached = true;
     revalidatePath(`/teacher/homework/${homeworkId}`);
     revalidatePath("/dashboard");
-    revalidatePath("/parent/homework", "layout");
+    revalidatePath("/student/homework", "layout");
     return learningResponse({ ok: true, id: attachment.id }, 201);
   } catch (error) { return learningFailure(error); }
   finally { if (file && !attached) await removeHomeworkFile(file.path); }

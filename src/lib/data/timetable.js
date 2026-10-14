@@ -41,25 +41,28 @@ export function getTodaySlots(_day, date = cairoToday()) {
   return listSlotsForDate(date);
 }
 
-export async function listChildrenSchedules(parentId, from = cairoToday()) {
+// Full student-specific schedule, including one-off cancellations and makeup lessons.
+export async function getStudentSchedule(studentId, from = cairoToday()) {
   const dates = scheduleDates(from, 14);
-  const links = await prisma.parentStudent.findMany({
-    where: { parentId, student: { archivedAt: null } },
-    include: { student: { select: { id: true, name: true, gradeLevel: true } } },
-    orderBy: { student: { name: "asc" } },
+  const groupLinks = await prisma.enrollment.findMany({
+    where: { studentId, endedAt: null, student: { archivedAt: null }, group: { archivedAt: null } },
+    select: { groupId: true },
   });
-  return Promise.all(links.map(async ({ student }) => {
-    const groupWhere = { archivedAt: null, enrollments: { some: { studentId: student.id, endedAt: null } } };
-    const [slots, exceptions] = await Promise.all([
-      prisma.weeklySlot.findMany({ where: { group: groupWhere }, include: { group: groupSelect }, orderBy: slotOrder }),
-      prisma.scheduleException.findMany({
-        where: { group: groupWhere, ...exceptionRange(from, dates.at(-1)) },
-        include: { group: groupSelect, slot: true },
-        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      }),
-    ]);
-    return { student, slots, exceptions, upcomingSlots: dates.flatMap((date) => resolveScheduleForDate(slots, exceptions, date)) };
-  }));
+  const groupIds = groupLinks.map(row => row.groupId);
+  if (!groupIds.length) return { slots: [], exceptions: [], upcomingSlots: [] };
+  const [slots, exceptions] = await Promise.all([
+    prisma.weeklySlot.findMany({
+      where: { groupId: { in: groupIds } },
+      include: { group: groupSelect },
+      orderBy: slotOrder,
+    }),
+    prisma.scheduleException.findMany({
+      where: { groupId: { in: groupIds }, ...exceptionRange(from, dates.at(-1)) },
+      include: { group: groupSelect, slot: true },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    }),
+  ]);
+  return { slots, exceptions, upcomingSlots: dates.flatMap(date => resolveScheduleForDate(slots, exceptions, date)) };
 }
 
 // Serializes all schedule writes across requests/processes: there is one tutor.

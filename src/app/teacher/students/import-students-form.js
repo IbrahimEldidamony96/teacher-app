@@ -20,7 +20,7 @@ export default function ImportStudentsForm({ groups }) {
   }
   return <details className="ui-panel">
     <summary className="cursor-pointer font-medium">استيراد الطلاب من ملف CSV</summary>
-    <p className="mt-3 text-sm text-gray-500">احفظ الجدول بصيغة CSV UTF-8. مطلوب name وgradeLevel. ممكن تضيف parentPhone وnotes. الصف الدراسي بالكود زي PRIMARY_1 أو باسم الصف العربي. الحد 500 طالب. الطلاب المسجلين بالفعل بيتم تخطيهم بدون تغيير بياناتهم أو مجموعاتهم.</p>
+    <p className="mt-3 text-sm text-gray-500">احفظ الجدول بصيغة CSV UTF-8. مطلوب name وgradeLevel. ممكن تضيف studentPhone وnotes. الصف الدراسي بالكود زي PRIMARY_1 أو باسم الصف العربي. الحد 500 طالب. الطلاب المسجلين بالفعل بيتم تخطيهم بدون تغيير بياناتهم أو مجموعاتهم.</p>
     <a download="students-template.csv" href={`data:text/csv;charset=utf-8,${encodeURIComponent("\uFEFF" + STUDENT_CSV_TEMPLATE)}`} className="my-2 inline-block text-sm underline">تحميل نموذج CSV</a>
     <form action={action} className="ui-form space-y-3" aria-busy={pending} onSubmit={() => setChanged(false)}>
       <label className="flex flex-col gap-1 text-sm">ملف CSV<input type="file" accept=".csv,text/csv" onChange={selectFile} className={input} /></label>

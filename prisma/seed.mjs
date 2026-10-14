@@ -11,6 +11,15 @@ const prisma = new PrismaClient({
 });
 
 const reset = process.argv.includes("--reset");
+const seedHost = (() => {
+  try { return new URL(process.env.DATABASE_URL).hostname; }
+  catch { return ""; }
+})();
+// Do not wipe a hosted database unless explicitly opted in for the selected
+// disposable development branch. This never allows resets with NODE_ENV=production.
+if (reset && seedHost.endsWith(".neon.tech") && process.env.ALLOW_REMOTE_SEED_RESET !== "true") {
+  throw new Error("Remote Neon reset blocked. Use a disposable DEV branch and explicitly set ALLOW_REMOTE_SEED_RESET=true to wipe it.");
+}
 const DAY = 24 * 60 * 60 * 1000;
 const DAY_INDEX = { SUN: 0, MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6 };
 
@@ -36,7 +45,7 @@ async function main() {
   }
 
   if (reset) {
-    // Children first. Real accounts (tutor and parents who signed up) are kept.
+    // Children first. Real accounts (tutor and students who signed up) are kept.
     await prisma.$transaction([
       prisma.notification.deleteMany(),
       prisma.examResult.deleteMany(),
@@ -47,7 +56,6 @@ async function main() {
       prisma.attendanceRecord.deleteMany(),
       prisma.weeklySlot.deleteMany(),
       prisma.enrollment.deleteMany(),
-      prisma.parentStudent.deleteMany(),
       prisma.studyGroup.deleteMany(),
       prisma.student.deleteMany(),
       prisma.user.deleteMany({ where: { clerkId: { startsWith: "seed_" } } }),
@@ -66,8 +74,8 @@ async function main() {
   });
 
   // Students
-  const mk = (name, gradeLevel, parentPhone) =>
-    prisma.student.create({ data: { name, gradeLevel, parentPhone } });
+  const mk = (name, gradeLevel, studentPhone) =>
+    prisma.student.create({ data: { name, gradeLevel, studentPhone } });
 
   const adam = await mk("آدم محمود", "PRIMARY_1", "01000000001");
   const laila = await mk("ليلى أحمد", "PRIMARY_1", "01000000002");
@@ -109,20 +117,6 @@ async function main() {
       slot(prep3, "SUN", "17:00", "18:30", "السنتر"),
       slot(prep3, "TUE", "17:00", "18:30", "السنتر"),
       slot(primary1, "WED", "16:00", "17:00", "السنتر"),
-    ],
-  });
-
-  // Placeholder parents (not real logins), linked to a few students
-  const parentAdam = await prisma.user.create({
-    data: { role: "PARENT", name: "والدة آدم", email: "parent.adam@example.test", clerkId: "seed_parent_adam" },
-  });
-  const parentMariam = await prisma.user.create({
-    data: { role: "PARENT", name: "والد مريم", email: "parent.mariam@example.test", clerkId: "seed_parent_mariam" },
-  });
-  await prisma.parentStudent.createMany({
-    data: [
-      { parentId: parentAdam.id, studentId: adam.id },
-      { parentId: parentMariam.id, studentId: mariam.id },
     ],
   });
 
@@ -229,7 +223,7 @@ async function main() {
   });
 
   console.log(
-    "Seeded: 3 groups, 8 students, weekly sessions, 2 placeholder parents, attendance for 2 sessions per group, payments for this month, homework (checked + upcoming), exams with grades."
+    "Seeded: 3 groups, 8 students, weekly sessions, student records, attendance for 2 sessions per group, payments for this month, homework (checked + upcoming), exams with grades."
   );
 }
 

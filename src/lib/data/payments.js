@@ -55,11 +55,6 @@ export async function getStudentPaymentHistory(studentId, monthsBack = 0) {
   return { history: monthsBack ? all.slice(0, monthsBack) : all, payments, charges };
 }
 
-export async function listChildrenPayments(parentId) {
-  const links = await prisma.parentStudent.findMany({ where: { parentId }, select: { studentId: true } });
-  return new Map(await Promise.all(links.map(async (l) => [l.studentId, (await getStudentPaymentHistory(l.studentId)).history])));
-}
-
 export async function recordPayment({ studentId, month, amount, method, note, kind = "PAYMENT", providerReference = null }) {
   if (!isValidMonth(month) || !Number.isSafeInteger(amount) || amount <= 0 || !["PAYMENT", "REFUND", "CREDIT"].includes(kind) || !["CASH", "WALLET", "INSTAPAY", "OTHER"].includes(method)) throw new Error("بيانات الدفعة غير صالحة.");
   return prisma.$transaction(async (tx) => {
@@ -87,8 +82,8 @@ export async function getStudentMonthStatus(studentId, month) {
 }
 
 export async function sendManualPaymentReminder(studentId, month) {
-  const [student, status] = await Promise.all([prisma.student.findUnique({ where: { id: studentId }, select: { name: true, parentPhone: true } }), getStudentMonthStatus(studentId, month)]);
-  if (!student?.parentPhone) throw new Error("لا يوجد رقم هاتف مسجل لولي الأمر.");
+  const [student, status] = await Promise.all([prisma.student.findUnique({ where: { id: studentId }, select: { name: true, studentPhone: true } }), getStudentMonthStatus(studentId, month)]);
+  if (!student?.studentPhone) throw new Error("لا يوجد رقم هاتف مسجل لالطالب.");
   if (status.remaining <= 0) throw new Error("لا يوجد مبلغ مستحق لهذا الشهر.");
-  await notifyPaymentReminder({ studentId, studentPhone: student.parentPhone, studentName: student.name, month, remaining: status.remaining, force: true });
+  await notifyPaymentReminder({ studentId, studentPhone: student.studentPhone, studentName: student.name, month, remaining: status.remaining, force: true });
 }

@@ -1,0 +1,13 @@
+name: Runner availability probe
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ping:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Confirm GitHub Actions runner starts
+        run: echo "GitHub-hosted runner is available"

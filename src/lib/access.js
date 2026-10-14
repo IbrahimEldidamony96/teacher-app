@@ -1,20 +1,12 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 
-// Can this user see this student's data (attendance, payments, schedule)?
-// Enforce this in every page and server action that reads a student's records.
+// Student authorization must be derived from the signed-in, verified account,
+// never from studentId supplied in the URL, request body, or query string.
 export async function canViewStudent(user, studentId) {
-  if (user.role === "TEACHER") return true;
-
-  if (user.role === "PARENT") {
-    const link = await prisma.parentStudent.findUnique({
-      where: { parentId_studentId: { parentId: user.id, studentId } },
-      select: { id: true },
-    });
-    return Boolean(link);
-  }
-
-  return false;
+  if (user?.role === "TEACHER") return true;
+  return user?.role === "STUDENT" &&
+    user.studentProfile?.id === studentId &&
+    !user.studentProfile?.archivedAt;
 }
 
 export async function assertCanViewStudent(user, studentId) {

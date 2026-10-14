@@ -13,16 +13,16 @@ function validateHomework({ title, description, dueDate }) {
   learningAssert(isValidDateString(dueDate), "تاريخ التسليم مش مظبوط.");
 }
 
-function parentHomeworkWhere(parentId, homeworkId, studentId) {
+function studentHomeworkWhere(studentId, homeworkId) {
   return {
     id: homeworkId,
-    group: { archivedAt: null, enrollments: { some: { studentId, endedAt: null, student: { archivedAt: null, parents: { some: { parentId } } } } } },
+    group: { archivedAt: null, enrollments: { some: { studentId, endedAt: null, student: { archivedAt: null } } } },
   };
 }
 
-export function getParentHomework(parentId, homeworkId, studentId, db = prisma) {
+export function getHomeworkForStudent(studentId, homeworkId, db = prisma) {
   return db.homework.findFirst({
-    where: parentHomeworkWhere(parentId, homeworkId, studentId),
+    where: studentHomeworkWhere(studentId, homeworkId),
     include: {
       group: { select: { name: true } },
       attachments: { select: attachmentSelect, orderBy: { createdAt: "asc" } },
@@ -52,7 +52,7 @@ export async function createHomework({ groupId, title, description, dueDate }) {
   validateHomework({ title, description, dueDate });
   const group = await prisma.studyGroup.findUnique({
     where: { id: groupId },
-    include: { enrollments: { where: { endedAt: null, student: { archivedAt: null } }, include: { student: { select: { id: true, name: true, parentPhone: true } } } } },
+    include: { enrollments: { where: { endedAt: null, student: { archivedAt: null } }, include: { student: { select: { id: true, name: true, studentPhone: true } } } } },
   });
   if (!group || group.archivedAt) throw new Error("المجموعة مش موجودة أو مؤرشفة.");
 
@@ -71,7 +71,7 @@ export async function createHomework({ groupId, title, description, dueDate }) {
     group.enrollments.map(({ student }) =>
       notifyHomeworkAssigned({
         studentId: student.id,
-        studentPhone: student.parentPhone,
+        studentPhone: student.studentPhone,
         studentName: student.name,
         homeworkTitle: title,
         dueDate: homework.dueDate,
@@ -220,14 +220,14 @@ export async function getStudentHomework(studentId, limit = 10) {
   };
 }
 
-// Called only after authentication; parent identity comes from the session, never the form.
-// Recheck both the parent link and group membership while saving the submission.
-export async function submitParentHomework(user, homeworkId, studentId, { body, file = null, removeFile = false }) {
-  learningAssert(user?.role === "PARENT", "غير مسموح.", 403);
+// Identity comes from the verified student session, never from form fields.
+export async function submitStudentHomework(user, homeworkId, { body, file = null, removeFile = false }) {
+  learningAssert(user?.role === "STUDENT" && user.studentProfile?.id, "غير مسموح.", 403);
+  const studentId = user.studentProfile.id;
   learningAssert(typeof body === "string" && body.length <= HOMEWORK_BODY_LIMIT, "الإجابة طويلة جداً.");
   const result = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Homework" WHERE "id" = ${homeworkId} FOR UPDATE`;
-    const homework = await getParentHomework(user.id, homeworkId, studentId, tx);
+    const homework = await getHomeworkForStudent(studentId, homeworkId, tx);
     learningAssert(homework, "الواجب غير متاح لهذا الطالب.", 404);
     learningAssert(homework.results.length === 0, "الواجب اتراجع بالفعل؛ كلّم المدرس لو محتاج تعدّل التسليم.", 409);
     const existing = await tx.homeworkSubmission.findUnique({ where: { homeworkId_studentId: { homeworkId, studentId } } });
@@ -249,14 +249,3 @@ export async function submitParentHomework(user, homeworkId, studentId, { body, 
   return result.submission;
 }
 
-// Only children linked to this parent are ever loaded. Returns Map(studentId -> homework data)
-export async function listChildrenHomework(parentId) {
-  const links = await prisma.parentStudent.findMany({
-    where: { parentId },
-    select: { studentId: true },
-  });
-  const pairs = await Promise.all(
-    links.map(async (l) => [l.studentId, await getStudentHomework(l.studentId)])
-  );
-  return new Map(pairs);
-}
