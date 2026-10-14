@@ -14,7 +14,7 @@ function text(formData, key) {
 function refresh(homework = false) {
   revalidatePath("/teacher", "layout");
   revalidatePath("/dashboard");
-  if (homework) revalidatePath("/parent/homework", "layout");
+  if (homework) revalidatePath("/student/homework", "layout");
 }
 
 export async function updateHomeworkAction(_previousState, formData) {

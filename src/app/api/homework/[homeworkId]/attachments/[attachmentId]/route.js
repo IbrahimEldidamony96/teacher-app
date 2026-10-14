@@ -33,7 +33,7 @@ export async function DELETE(request, { params }) {
     await removeHomeworkFile(file.filePath);
     revalidatePath(`/teacher/homework/${homeworkId}`);
     revalidatePath("/dashboard");
-    revalidatePath("/parent/homework", "layout");
+    revalidatePath("/student/homework", "layout");
     return learningResponse({ ok: true });
   } catch (error) { return learningFailure(error); }
 }
