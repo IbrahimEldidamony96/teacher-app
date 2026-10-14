@@ -79,8 +79,8 @@ describe("live classroom WhatsApp invitations", { concurrency: false }, () => {
 
   async function room({ mode = "LIVE", active = true, connected = true, phones = ["01012345678", "01012345678", null] } = {}) {
     const group = await prisma.studyGroup.create({ data: { name: `Invitation Group ${randomUUID()}`, gradeLevel: "PRIMARY_1" } });
-    const students = await Promise.all(phones.map((parentPhone, index) => prisma.student.create({ data: {
-      name: `Invitation Student ${index + 1}`, gradeLevel: "PRIMARY_1", parentPhone,
+    const students = await Promise.all(phones.map((studentPhone, index) => prisma.student.create({ data: {
+      name: `Invitation Student ${index + 1}`, gradeLevel: "PRIMARY_1", studentPhone,
       enrollments: { create: { groupId: group.id } },
     } })));
     const session = await classrooms.createClassroom(teacher, { title: "Live Invitation Lesson", groupId: group.id, mode, date: "2026-10-01" });
@@ -107,7 +107,7 @@ describe("live classroom WhatsApp invitations", { concurrency: false }, () => {
 
   it("allows only the owning teacher to prepare or send invitations", async () => {
     const lesson = await room();
-    for (const actor of [lesson.studentActor, { ...lesson.owner, userId: otherTeacher.id }, { ...lesson.owner, role: "PARENT" }]) {
+    for (const actor of [lesson.studentActor, { ...lesson.owner, userId: otherTeacher.id }, { ...lesson.owner, role: "INVALID" }]) {
       await assert.rejects(invitations.prepareClassroomInvitations(actor, lesson.input), hasStatus(403));
       await assert.rejects(invitations.sendClassroomInvitations(actor, { ...lesson.input, studentIds: [lesson.students[0].id] }), hasStatus(403));
     }
@@ -197,7 +197,7 @@ describe("live classroom WhatsApp invitations", { concurrency: false }, () => {
     const departed = lesson.students[0];
     await prisma.enrollment.delete({ where: { studentId_groupId: { studentId: departed.id, groupId: lesson.group.id } } });
     const added = await prisma.student.create({ data: {
-      name: "Newly Enrolled Student", gradeLevel: "PRIMARY_1", parentPhone: "01112345678",
+      name: "Newly Enrolled Student", gradeLevel: "PRIMARY_1", studentPhone: "01112345678",
       enrollments: { create: { groupId: lesson.group.id } },
     } });
     const state = await prepare(lesson);

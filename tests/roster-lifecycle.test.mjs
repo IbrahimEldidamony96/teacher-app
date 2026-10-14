@@ -23,23 +23,23 @@ describe("student roster lifecycle", { concurrency: false }, () => {
   });
 
   it("edits student details and rejects collisions including concurrent edits and creates", async () => {
-    const first = (await students.createStudent({ name: "Edit First", gradeLevel: "PRIMARY_1", parentPhone: "01000000101" })).student;
-    const second = (await students.createStudent({ name: "Edit Second", gradeLevel: "PRIMARY_1", parentPhone: "01000000102" })).student;
-    const collision = await students.updateStudent(second.id, { name: "edit  first", gradeLevel: "PRIMARY_2", parentPhone: "+201000000101", notes: null });
+    const first = (await students.createStudent({ name: "Edit First", gradeLevel: "PRIMARY_1", studentPhone: "01000000101" })).student;
+    const second = (await students.createStudent({ name: "Edit Second", gradeLevel: "PRIMARY_1", studentPhone: "01000000102" })).student;
+    const collision = await students.updateStudent(second.id, { name: "edit  first", gradeLevel: "PRIMARY_2", studentPhone: "+201000000101", notes: null });
     assert.equal(collision.updated, false);
     assert.equal(collision.existingStudentId, first.id);
     const results = await Promise.all([
-      students.updateStudent(first.id, { name: "Concurrent Roster", gradeLevel: "PRIMARY_2", parentPhone: "201000000103", notes: "Changed" }),
-      students.updateStudent(second.id, { name: "Concurrent Roster", gradeLevel: "PRIMARY_2", parentPhone: "201000000103", notes: "Changed" }),
-      students.createStudent({ name: "Concurrent Roster", gradeLevel: "PRIMARY_2", parentPhone: "201000000103" }),
+      students.updateStudent(first.id, { name: "Concurrent Roster", gradeLevel: "PRIMARY_2", studentPhone: "201000000103", notes: "Changed" }),
+      students.updateStudent(second.id, { name: "Concurrent Roster", gradeLevel: "PRIMARY_2", studentPhone: "201000000103", notes: "Changed" }),
+      students.createStudent({ name: "Concurrent Roster", gradeLevel: "PRIMARY_2", studentPhone: "201000000103" }),
     ]);
     assert.equal(results.filter((row) => row.updated || row.created).length, 1);
-    assert.equal(await prisma.student.count({ where: { name: "Concurrent Roster", parentPhone: "201000000103" } }), 1);
+    assert.equal(await prisma.student.count({ where: { name: "Concurrent Roster", studentPhone: "201000000103" } }), 1);
   });
 
   it("archives students without deleting payments/attendance and restores without reopening enrollments", async () => {
     const group = await prisma.studyGroup.create({ data: { name: "Student Archive Test", gradeLevel: "PRIMARY_3", monthlyFee: 120 } });
-    const student = (await students.createStudent({ name: "Archive Student", gradeLevel: "PRIMARY_3", parentPhone: "01000000104", groupId: group.id })).student;
+    const student = (await students.createStudent({ name: "Archive Student", gradeLevel: "PRIMARY_3", studentPhone: "01000000104", groupId: group.id })).student;
     await prisma.payment.create({ data: { studentId: student.id, groupId: group.id, month: "2026-10", amount: 60 } });
     await prisma.attendanceRecord.create({ data: { studentId: student.id, groupId: group.id, date: new Date("2026-10-01T00:00:00Z"), status: "PRESENT" } });
     await lifecycle.setStudentArchived(student.id, true);
@@ -83,7 +83,7 @@ describe("student roster lifecycle", { concurrency: false }, () => {
 
   it("previews import validation, skips existing identities and rolls back invalid imports", async () => {
     const group = await prisma.studyGroup.create({ data: { name: "CSV Import Group", gradeLevel: "SEC_1" } });
-    const csv = 'name,gradeLevel,parentPhone,notes\n"CSV, First",SEC_1,01000000105,"A note"\nCSV Second,SEC_1,01000000106,\n';
+    const csv = 'name,gradeLevel,studentPhone,notes\n"CSV, First",SEC_1,01000000105,"A note"\nCSV Second,SEC_1,01000000106,\n';
     const preview = await imports.previewStudentImport(csv);
     assert.ok(preview.every((row) => row.status === "new"));
     assert.deepEqual(await imports.importStudents(csv, group.id), { created: 2, skipped: 0 });

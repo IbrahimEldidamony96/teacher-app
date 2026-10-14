@@ -29,11 +29,11 @@ describe("student creation", { concurrency: false }, () => {
     }
   });
 
-  it("returns the original student when the same name and parent phone are submitted again", async () => {
+  it("returns the original student when the same name and student phone are submitted again", async () => {
     const input = {
       name: "Repeated Test Student",
       gradeLevel: "PRIMARY_1",
-      parentPhone: "01000000001",
+      studentPhone: "01000000001",
       notes: "Original notes",
     };
     const first = await createStudent(input);
@@ -52,13 +52,13 @@ describe("student creation", { concurrency: false }, () => {
     const first = await createStudent({
       name: "  Ｆｏｒｍａｔ\u00a0STUDENT  ",
       gradeLevel: "PRIMARY_2",
-      parentPhone: "011 2345 6789",
+      studentPhone: "011 2345 6789",
     });
     assert.equal(first.created, true);
     assert.equal(first.student.name, "Format STUDENT");
-    assert.equal(first.student.parentPhone, "201123456789");
+    assert.equal(first.student.studentPhone, "201123456789");
 
-    for (const parentPhone of [
+    for (const studentPhone of [
       "+20 (11) 2345-6789",
       "00201123456789",
       "٠١١٢٣٤٥٦٧٨٩",
@@ -67,18 +67,18 @@ describe("student creation", { concurrency: false }, () => {
       const repeated = await createStudent({
         name: "format \t\n student",
         gradeLevel: "PRIMARY_2",
-        parentPhone,
+        studentPhone,
       });
       assert.equal(repeated.created, false);
       assert.equal(repeated.student.id, first.student.id);
     }
   });
 
-  it("allows siblings using the same parent phone and matching names with different phones", async () => {
+  it("allows siblings using the same student phone and matching names with different phones", async () => {
     const inputs = [
-      { name: "Sibling Test One", parentPhone: "01000000002" },
-      { name: "Sibling Test Two", parentPhone: "01000000002" },
-      { name: "Sibling Test One", parentPhone: "01000000003" },
+      { name: "Sibling Test One", studentPhone: "01000000002" },
+      { name: "Sibling Test Two", studentPhone: "01000000002" },
+      { name: "Sibling Test One", studentPhone: "01000000003" },
     ];
     const results = [];
     for (const input of inputs) results.push(await createStudent({ ...input, gradeLevel: "PRIMARY_3" }));
@@ -87,14 +87,14 @@ describe("student creation", { concurrency: false }, () => {
     assert.equal(new Set(results.map((result) => result.student.id)).size, 3);
   });
 
-  it("allows matching names when a parent phone has not been provided", async () => {
+  it("allows matching names when a student phone has not been provided", async () => {
     const results = [];
-    for (const parentPhone of [undefined, "", "   "]) {
-      results.push(await createStudent({ name: "No Phone Test Student", gradeLevel: "PRIMARY_4", parentPhone }));
+    for (const studentPhone of [undefined, "", "   "]) {
+      results.push(await createStudent({ name: "No Phone Test Student", gradeLevel: "PRIMARY_4", studentPhone }));
     }
     assert.ok(results.every((result) => result.created));
     assert.equal(new Set(results.map((result) => result.student.id)).size, 3);
-    assert.ok(results.every((result) => result.student.parentPhone === null));
+    assert.ok(results.every((result) => result.student.studentPhone === null));
   });
 
   it("creates only one record when duplicate submissions arrive concurrently", { timeout: 30_000 }, async () => {
@@ -102,13 +102,13 @@ describe("student creation", { concurrency: false }, () => {
       Array.from({ length: 5 }, (_, index) => createStudent({
         name: index % 2 ? "Concurrent   Test Student" : "concurrent test student",
         gradeLevel: "PRIMARY_5",
-        parentPhone: index % 2 ? "+20 10 0000 0004" : "01000000004",
+        studentPhone: index % 2 ? "+20 10 0000 0004" : "01000000004",
       }))
     );
 
     assert.equal(results.filter((result) => result.created).length, 1);
     assert.equal(new Set(results.map((result) => result.student.id)).size, 1);
-    assert.equal(await prisma.student.count({ where: { parentPhone: "201000000004" } }), 1);
+    assert.equal(await prisma.student.count({ where: { studentPhone: "201000000004" } }), 1);
   });
 
   it("rejects another duplicate of legacy records while preserving their enrollment and payment history", async () => {
@@ -119,7 +119,7 @@ describe("student creation", { concurrency: false }, () => {
       data: {
         name: "  Legacy   Test Student  ",
         gradeLevel: "PRIMARY_6",
-        parentPhone: "010 0000 0005",
+        studentPhone: "010 0000 0005",
         createdAt: new Date("2020-01-01T00:00:00Z"),
         enrollments: { create: { groupId: group.id } },
         payments: { create: { groupId: group.id, month: "2026-10", amount: 100 } },
@@ -129,7 +129,7 @@ describe("student creation", { concurrency: false }, () => {
       data: {
         name: "legacy test student",
         gradeLevel: "PRIMARY_6",
-        parentPhone: "+201000000005",
+        studentPhone: "+201000000005",
         createdAt: new Date("2020-01-02T00:00:00Z"),
       },
     });
@@ -137,7 +137,7 @@ describe("student creation", { concurrency: false }, () => {
     const duplicate = await createStudent({
       name: "Legacy Test Student",
       gradeLevel: "PRIMARY_6",
-      parentPhone: "٠١٠٠٠٠٠٠٠٠٥",
+      studentPhone: "٠١٠٠٠٠٠٠٠٠٥",
       groupId: group.id,
     });
 
@@ -156,7 +156,7 @@ describe("student creation", { concurrency: false }, () => {
     const otherGroup = await prisma.studyGroup.create({
       data: { name: "Enrollment Test Other Group", gradeLevel: "PREP_1" },
     });
-    const input = { name: "Enrolled Test Student", gradeLevel: "PREP_1", parentPhone: "01000000006" };
+    const input = { name: "Enrolled Test Student", gradeLevel: "PREP_1", studentPhone: "01000000006" };
     const first = await createStudent({ ...input, groupId: firstGroup.id });
     const duplicate = await createStudent({ ...input, groupId: otherGroup.id });
 
@@ -170,7 +170,7 @@ describe("student creation", { concurrency: false }, () => {
 
   it("rolls back student creation when the selected group is invalid", async () => {
     const beforeCount = await prisma.student.count();
-    const input = { name: "Rollback Test Student", gradeLevel: "PREP_2", parentPhone: "01000000007" };
+    const input = { name: "Rollback Test Student", gradeLevel: "PREP_2", studentPhone: "01000000007" };
     await assert.rejects(createStudent({ ...input, groupId: "missing-test-group" }));
     assert.equal(await prisma.student.count(), beforeCount);
     const valid = await createStudent(input);
@@ -182,13 +182,13 @@ describe("student creation", { concurrency: false }, () => {
       data: {
         name: "\uFEFFΟΣ\uFEFF",
         gradeLevel: "PREP_3",
-        parentPhone: "01000000008",
+        studentPhone: "01000000008",
       },
     });
     const repeated = await createStudent({
       name: "ος",
       gradeLevel: "PREP_3",
-      parentPhone: "+20 10 0000 0008",
+      studentPhone: "+20 10 0000 0008",
     });
     assert.equal(repeated.created, false);
     assert.equal(repeated.student.id, legacy.id);
@@ -197,7 +197,7 @@ describe("student creation", { concurrency: false }, () => {
     const distinctSigma = await createStudent({
       name: "οσ",
       gradeLevel: "PREP_3",
-      parentPhone: "01000000008",
+      studentPhone: "01000000008",
     });
     assert.equal(distinctSigma.created, true);
     assert.notEqual(distinctSigma.student.id, legacy.id);
@@ -205,12 +205,12 @@ describe("student creation", { concurrency: false }, () => {
     const plainI = await createStudent({
       name: "Ibrahim",
       gradeLevel: "PREP_3",
-      parentPhone: "01000000009",
+      studentPhone: "01000000009",
     });
     const dottedI = await createStudent({
       name: "İbrahim",
       gradeLevel: "PREP_3",
-      parentPhone: "01000000009",
+      studentPhone: "01000000009",
     });
     assert.equal(plainI.created, true);
     assert.equal(dottedI.created, true);
@@ -218,7 +218,7 @@ describe("student creation", { concurrency: false }, () => {
     const dottedRepeat = await createStudent({
       name: "İBRAHIM",
       gradeLevel: "PREP_3",
-      parentPhone: "01000000009",
+      studentPhone: "01000000009",
     });
     assert.equal(dottedRepeat.created, false);
     assert.equal(dottedRepeat.student.id, dottedI.student.id);
