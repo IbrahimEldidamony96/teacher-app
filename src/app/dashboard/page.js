@@ -2,11 +2,11 @@ import Link from "next/link";
 import AppShell from "@/components/app-shell";
 import AppIcon from "@/components/app-icon";
 import { requireUser } from "@/lib/auth";
-import { getTodaySlots } from "@/lib/data/timetable";
+import { getTodaySlots, getStudentSchedule } from "@/lib/data/timetable";
 import { getAttendanceCountsForDate, getStudentAttendance } from "@/lib/data/attendance";
 import { cairoNow, cairoToday, cairoMonth } from "@/lib/time";
 import { DAY_LABELS, GRADE_LABELS, formatRange, formatMonth, egp } from "@/lib/labels";
-import WeekSchedule from "@/components/week-schedule";
+import DatedSchedule from "@/components/dated-schedule";
 import AttendanceSummary from "@/components/attendance-summary";
 import PaymentHistory from "@/components/payment-history";
 import { getMonthOverview, getStudentPaymentHistory } from "@/lib/data/payments";
@@ -153,12 +153,13 @@ async function TeacherHome() {
 
 async function StudentHome({user}) {
   const studentId = user.studentProfile.id;
-  const [student, attendance, payments, homework, exams] = await Promise.all([
+  const [student, schedule, attendance, payments, homework, exams] = await Promise.all([
     prisma.student.findUnique({
       where: { id: studentId },
       include: { enrollments: { where: { endedAt: null, group: { archivedAt: null } },
-        include: { group: { select: { id: true, name: true, gradeLevel: true, slots: true } } } } },
+        include: { group: { select: { id: true, name: true, gradeLevel: true } } } } },
     }),
+    getStudentSchedule(studentId),
     getStudentAttendance(studentId),
     getStudentPaymentHistory(studentId),
     getStudentHomework(studentId),
@@ -173,7 +174,8 @@ async function StudentHome({user}) {
     </div>
     <section className="ui-panel space-y-3">
       <h2 className="font-semibold">مواعيد الحصص</h2>
-      <WeekSchedule slots={groups.flatMap(group => group.slots.map(slot => ({...slot,group})))}/>
+      <DatedSchedule slots={schedule.upcomingSlots} exceptions={schedule.exceptions}/>
+      <Link className="text-sm text-blue-600 underline" href="/student/schedule">عرض الجدول كاملًا</Link>
       <Link className="text-sm text-blue-600 underline" href="/student/classrooms">الحصص الأونلاين والتسجيلات</Link>
     </section>
     <section className="ui-panel space-y-3"><h2 className="font-semibold">الحضور</h2><AttendanceSummary summary={attendance}/></section>

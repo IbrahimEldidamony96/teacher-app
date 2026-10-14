@@ -41,6 +41,30 @@ export function getTodaySlots(_day, date = cairoToday()) {
   return listSlotsForDate(date);
 }
 
+// Full student-specific schedule, including one-off cancellations and makeup lessons.
+export async function getStudentSchedule(studentId, from = cairoToday()) {
+  const dates = scheduleDates(from, 14);
+  const groupLinks = await prisma.enrollment.findMany({
+    where: { studentId, endedAt: null, student: { archivedAt: null }, group: { archivedAt: null } },
+    select: { groupId: true },
+  });
+  const groupIds = groupLinks.map(row => row.groupId);
+  if (!groupIds.length) return { slots: [], exceptions: [], upcomingSlots: [] };
+  const [slots, exceptions] = await Promise.all([
+    prisma.weeklySlot.findMany({
+      where: { groupId: { in: groupIds } },
+      include: { group: groupSelect },
+      orderBy: slotOrder,
+    }),
+    prisma.scheduleException.findMany({
+      where: { groupId: { in: groupIds }, ...exceptionRange(from, dates.at(-1)) },
+      include: { group: groupSelect, slot: true },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    }),
+  ]);
+  return { slots, exceptions, upcomingSlots: dates.flatMap(date => resolveScheduleForDate(slots, exceptions, date)) };
+}
+
 // Serializes all schedule writes across requests/processes: there is one tutor.
 async function scheduleTransaction(write) {
   return prisma.$transaction(async (tx) => {

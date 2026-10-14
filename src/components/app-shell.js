@@ -21,6 +21,7 @@ const teacherLinks = [
 const studentLinks = [
   { href: "/dashboard", label: "الرئيسية", icon: "home" },
   { href: "/student/classrooms", label: "حصصي الأونلاين", icon: "video" },
+  { href: "/student/schedule", label: "جدولي", icon: "calendar" },
 ];
 
 export default function AppShell({ children, teacher = true }) {
