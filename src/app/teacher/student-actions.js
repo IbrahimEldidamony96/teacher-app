@@ -19,12 +19,12 @@ export async function updateStudentAction(_previous, formData) {
   await requireRole("TEACHER");
   const studentId = text(formData, "studentId");
   if (!studentId) return { message: "الطالب مطلوب.", success: false };
-  const { data, errors } = validateStudentInput(Object.fromEntries(["name", "gradeLevel", "parentPhone", "notes"].map((key) => [key, text(formData, key)])));
+  const { data, errors } = validateStudentInput(Object.fromEntries(["name", "gradeLevel", "studentPhone", "notes"].map((key) => [key, text(formData, key)])));
   if (errors.length) return { message: errors.join(" "), success: false };
   let result;
   try { result = await updateStudent(studentId, data); }
   catch (error) { return failure(error); }
-  if (!result.updated) return { message: "فيه طالب تاني بنفس الاسم ورقم ولي الأمر.", existingStudentId: result.existingStudentId, success: false };
+  if (!result.updated) return { message: "فيه طالب تاني بنفس الاسم ورقم الطالب.", existingStudentId: result.existingStudentId, success: false };
   refresh();
   return { message: "اتحفظت بيانات الطالب.", success: true };
 }

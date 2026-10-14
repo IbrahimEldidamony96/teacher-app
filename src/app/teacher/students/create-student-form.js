@@ -13,7 +13,7 @@ export default function CreateStudentForm({ groups }) {
   const [values, setValues] = useState({
     name: "",
     gradeLevel: GRADE_ORDER[0],
-    parentPhone: "",
+    studentPhone: "",
     groupId: "",
     notes: "",
   });
@@ -50,13 +50,13 @@ export default function CreateStudentForm({ groups }) {
         </select>
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        رقم ولي الأمر (اختياري)
+        رقم الطالب (اختياري)
         <input
-          name="parentPhone"
+          name="studentPhone"
           type="tel"
           dir="ltr"
           placeholder="01xxxxxxxxx"
-          value={values.parentPhone}
+          value={values.studentPhone}
           onChange={handleChange}
           className={input}
         />

@@ -33,7 +33,7 @@ export default async function StudentsPage({ searchParams }) {
       <CreateStudentForm groups={choices} />
       <ImportStudentsForm groups={choices} />
       <form method="get" className="ui-form flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm">بحث بالاسم أو رقم ولي الأمر<input name="q" defaultValue={search} maxLength={150} className={input} /></label>
+        <label className="flex flex-col gap-1 text-sm">بحث بالاسم أو رقم الطالب<input name="q" defaultValue={search} maxLength={150} className={input} /></label>
         <label className="flex flex-col gap-1 text-sm">الصف الدراسي<select name="grade" defaultValue={gradeLevel} className={input}><option value="">كل الصفوف</option>{GRADE_ORDER.map((grade) => <option key={grade} value={grade}>{GRADE_LABELS[grade]}</option>)}</select></label>
         <label className="flex flex-col gap-1 text-sm">المجموعة<select name="group" defaultValue={groupId} className={input}><option value="">كل المجموعات</option>{choices.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
         <label className="flex flex-col gap-1 text-sm">الحالة<select name="archived" defaultValue={archived} className={input}><option value="active">نشط</option><option value="archived">مؤرشف</option><option value="all">الكل</option></select></label>

@@ -111,20 +111,6 @@ async function main() {
     ],
   });
 
-  // Placeholder parents (not real logins), linked to a few students
-  const parentAdam = await prisma.user.create({
-    data: { role: "PARENT", name: "والدة آدم", email: "parent.adam@example.test", clerkId: "seed_parent_adam" },
-  });
-  const parentMariam = await prisma.user.create({
-    data: { role: "PARENT", name: "والد مريم", email: "parent.mariam@example.test", clerkId: "seed_parent_mariam" },
-  });
-  await prisma.parentStudent.createMany({
-    data: [
-      { parentId: parentAdam.id, studentId: adam.id },
-      { parentId: parentMariam.id, studentId: mariam.id },
-    ],
-  });
-
   // Attendance for the last two sessions of each group's first weekly slot
   const attendanceRows = [];
   const sessions = [
