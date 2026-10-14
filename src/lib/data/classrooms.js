@@ -21,11 +21,11 @@ async function loadSession(actor, db = prisma) {
   const session = await db.classroomSession.findUnique({
     where: { id: actor.sessionId },
     include: {
-      group: { select: { name: true } },
+      group: { select: { name: true, archivedAt: true } },
       owner: { select: { name: true } },
       participants: {
         include: { student: { select: {
-          name: true, enrollments: { select: { groupId: true } },
+          name: true, archivedAt: true, enrollments: { select: { groupId: true, endedAt: true } },
         } } },
         orderBy: [{ student: { name: "asc" } }, { id: "asc" }],
       },
@@ -41,7 +41,7 @@ async function loadSession(actor, db = prisma) {
 }
 
 function isEnrolled(participant, session) {
-  return participant.student.enrollments.some((row) => row.groupId === session.groupId);
+  return !session.group.archivedAt && !participant.student.archivedAt && participant.student.enrollments.some((row) => row.groupId === session.groupId && row.endedAt === null);
 }
 
 function visibleMessage(actor, message) {
@@ -62,9 +62,9 @@ export async function createClassroom(user, input) {
   classroomAssert(isValidDateString(input.date ?? "") && input.date <= cairoToday(), "اختار تاريخ اليوم أو تاريخ سابق.");
   const group = await prisma.studyGroup.findUnique({
     where: { id: typeof input.groupId === "string" ? input.groupId : "" },
-    select: { id: true, enrollments: { select: { studentId: true } } },
+    select: { id: true, archivedAt: true, enrollments: { where: { endedAt: null, student: { archivedAt: null } }, select: { studentId: true } } },
   });
-  classroomAssert(group, "المجموعة غير موجودة.", 404);
+  classroomAssert(group && !group.archivedAt, "المجموعة غير موجودة أو مؤرشفة.", 404);
   classroomAssert(group.enrollments.length > 0, "ضيف طلاب للمجموعة قبل إنشاء الجلسة.");
   classroomAssert(group.enrollments.length <= 200, "الجلسة تدعم حتى ٢٠٠ طالب في القائمة.");
   return prisma.classroomSession.create({
@@ -175,7 +175,7 @@ export async function changeClassroom(actor, input) {
       return { ok: true };
     }
     if (input.action === "refreshRoster") {
-      const enrollments = await tx.enrollment.findMany({ where: { groupId: session.groupId }, select: { studentId: true } });
+      const enrollments = await tx.enrollment.findMany({ where: { groupId: session.groupId, endedAt: null, student: { archivedAt: null } }, select: { studentId: true } });
       classroomAssert(enrollments.length <= 200, "الجلسة تدعم حتى ٢٠٠ طالب في القائمة.");
       await tx.classroomParticipant.createMany({ data: enrollments.map(({ studentId }) => ({ sessionId: session.id, studentId })), skipDuplicates: true });
       return { ok: true };

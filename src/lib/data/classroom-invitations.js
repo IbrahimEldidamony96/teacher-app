@@ -54,7 +54,7 @@ async function sendStudentInvitation(actor, connectionId, origin, original) {
       const participant = await tx.classroomParticipant.findFirst({
         where: {
           id: original.id, sessionId: session.id, inviteNonce: original.inviteNonce,
-          student: { enrollments: { some: { groupId: session.groupId } } },
+          student: { archivedAt: null, enrollments: { some: { groupId: session.groupId, endedAt: null } } },
         },
         include: { student: { select: { name: true, studentPhone: true } } },
       });
@@ -95,7 +95,7 @@ export async function sendClassroomInvitations(actor, { studentIds, connectionId
   const participants = await prisma.classroomParticipant.findMany({
     where: {
       sessionId: session.id, studentId: { in: studentIds },
-      student: { enrollments: { some: { groupId: session.groupId } } },
+      student: { archivedAt: null, enrollments: { some: { groupId: session.groupId, endedAt: null } } },
     },
   });
   classroomAssert(participants.length === studentIds.length, "بعض الطلاب غير مسجلين في هذه الجلسة. حدث قائمة الطلاب.", 403);
