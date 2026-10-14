@@ -9,11 +9,11 @@ import { HOMEWORK_LABELS, formatDate } from "@/lib/labels";
 import AppShell from "@/components/app-shell";
 import HomeworkSubmissionForm from "./submission-form";
 
-export default async function StudentHomeworkPage({ params, searchParams }) {
+export default async function StudentHomeworkPage({ params }) {
   const user = await requireRole("STUDENT");
   const { homeworkId } = await params;
   const studentId = user.studentProfile.id;
-  const homework = await getParentHomework(user.id, homeworkId, studentId);
+  const homework = await getHomeworkForStudent(studentId, homeworkId);
   if (!homework) notFound();
   const student = await prisma.student.findUnique({ where: { id: studentId }, select: { name: true } });
   const submission = homework.submissions[0] ?? null;

@@ -9,9 +9,9 @@ export async function actorFromClassroomInvite(sessionId, token) {
   if (!id) return null;
   const participant = await prisma.classroomParticipant.findFirst({
     where: { id, sessionId },
-    include: { student: { select: { name: true } }, session: { select: { groupId: true } } },
+    include: { student: { select: { name: true, archivedAt: true } }, session: { select: { groupId: true, group: { select: { archivedAt: true } } } } },
   });
-  if (!participant || !verifyClassroomInvite(participant, token)) return null;
+  if (!participant || participant.student.archivedAt || participant.session.group.archivedAt || !verifyClassroomInvite(participant, token)) return null;
   const enrollment = await prisma.enrollment.findUnique({
     where: { studentId_groupId: { studentId: participant.studentId, groupId: participant.session.groupId } },
     select: { id: true },

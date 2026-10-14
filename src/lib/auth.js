@@ -13,7 +13,13 @@ export const getCurrentUser = cache(async () => {
     where: { clerkId: userId },
     include: { studentProfile: { select: { id: true, archivedAt: true, loginEmail: true } } },
   });
-  if (existing?.role === "TEACHER") return existing;
+  if (existing?.role === "TEACHER") {
+    const clerkUser = await currentUser();
+    const primary = clerkUser?.primaryEmailAddress;
+    const email = primary?.emailAddress?.trim().toLowerCase();
+    const teacherEmail = (process.env.TEACHER_EMAIL ?? process.env.ADMIN_EMAIL)?.trim().toLowerCase();
+    return email && primary.verification?.status === "verified" && email === teacherEmail ? existing : null;
+  }
 
   const clerkUser = await currentUser();
   const primary = clerkUser?.primaryEmailAddress;
