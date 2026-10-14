@@ -13,6 +13,7 @@
     "whatsapp:setup": "node scripts/setup-whatsapp.mjs",
     "lint": "eslint .",
     "test:students": "tsx --test tests/students.test.mjs",
+    "test:student-portal": "tsx --test tests/student-portal.test.mjs",
     "vision:prepare": "node scripts/prepare-vision.mjs",
     "db:seed": "tsx prisma/seed.mjs",
     "db:generate": "prisma generate",
