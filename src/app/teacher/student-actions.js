@@ -89,10 +89,19 @@ export async function importStudentsAction(_previous, formData) {
   return { message: `اتضاف ${result.created} طالب واتخطّى ${result.skipped} طالب مسجل بالفعل.`, success: true, completed: true };
 }
 
-export async function setStudentLoginEmailAction(formData){
+export async function setStudentLoginEmailAction(_previous, formData) {
   await requireRole("TEACHER");
-  const studentId=text(formData,"studentId");
-  if(!studentId) throw new Error("الطالب مطلوب.");
-  await setStudentLoginEmail(studentId,text(formData,"loginEmail"));
-  refresh();
+  const studentId = text(formData, "studentId");
+  if (!studentId) return { message: "الطالب مطلوب.", success: false };
+  try {
+    await setStudentLoginEmail(studentId, text(formData, "loginEmail"));
+    refresh();
+    return { message: "اتحفظ البريد الإلكتروني للطالب.", success: true };
+  } catch (error) {
+    if (error?.code === "P2002") return { message: "الإيميل ده مستخدم لطالب تاني بالفعل.", success: false };
+    if (error?.message === "اكتب بريد إلكتروني صحيح للطالب." || error?.message === "البريد الإلكتروني مخصص لحساب المدرس.") {
+      return { message: error.message, success: false };
+    }
+    return { message: "تعذّر حفظ الحساب. راجع البيانات وحاول تاني.", success: false };
+  }
 }

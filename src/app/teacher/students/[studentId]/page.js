@@ -24,7 +24,7 @@ import {
   deletePaymentAction,
 } from "@/app/teacher/actions";
 import { input, button, dangerButton, card } from "@/app/teacher/ui";
-import { setStudentLoginEmailAction } from "@/app/teacher/student-actions";
+import StudentLoginForm from "../student-login-form";
 import StudentEditForm from "../student-edit-form";
 import LifecycleForm from "../lifecycle-form";
 
@@ -179,13 +179,7 @@ export default async function StudentPage({ params }) {
       <section className="ui-panel space-y-3">
         <h2 className="text-lg font-semibold">حساب الطالب</h2>
         <p className="text-sm text-gray-500">حدد إيميل الطالب المسجل في Clerk. لازم الطالب يحقق الإيميل قبل ما يقدر يفتح بياناته. إزالة الإيميل توقف وصوله فورًا.</p>
-        <form action={setStudentLoginEmailAction} className="ui-form flex flex-wrap items-end gap-2">
-          <input type="hidden" name="studentId" value={student.id}/>
-          <label className="flex flex-col gap-1 text-sm">البريد الإلكتروني
-            <input type="email" name="loginEmail" defaultValue={student.loginEmail ?? ""} maxLength={254} className={input} placeholder="student@example.com"/>
-          </label>
-          <button className={button} type="submit">حفظ حساب الطالب</button>
-        </form>
+        <StudentLoginForm studentId={student.id} loginEmail={student.loginEmail}/>
         <p className="text-sm">{student.account ? "الحساب مربوط بالفعل" : student.loginEmail ? "بانتظار تسجيل الطالب بالبريد المعتمد" : "لم يتم تخصيص حساب بعد"}</p>
       </section>
     </div>
