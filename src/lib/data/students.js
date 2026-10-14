@@ -114,7 +114,7 @@ export function updateStudent(studentId, data) {
 // Changing the email revokes the prior account's access immediately.
 export async function setStudentLoginEmail(studentId, loginEmail) {
   const email = loginEmail.trim().toLowerCase();
-  if (email && (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254)) {
+  if (email && (!/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email) || email.length > 254)) {
     throw new Error("اكتب بريد إلكتروني صحيح للطالب.");
   }
   return prisma.$transaction(async (tx) => {
