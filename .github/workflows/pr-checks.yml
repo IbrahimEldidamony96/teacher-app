@@ -1,0 +1,37 @@
+name: Teacher app PR checks
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # No production tokens, database URLs or user data are needed.
+      NODE_ENV: test
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jb20k
+      CLERK_SECRET_KEY: sk_test_dummy_for_build_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run lint
+      - run: npm run build
+        env:
+          NODE_ENV: production
+      - run: npx tsx --test tests/schedule.test.mjs tests/student-csv.test.mjs tests/classroom-http.test.mjs tests/classroom-origin.test.mjs tests/prisma-pool.test.mjs
+      - run: npm run test:privacy-migration
+      - run: npm run test:student-portal
+      - run: npm run test:students
+      - run: npx tsx --test tests/roster-lifecycle.test.mjs
+      - run: npm run test:classrooms
+      - run: npm run test:classroom-invitations
