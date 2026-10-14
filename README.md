@@ -2,6 +2,31 @@
 
 Arabic (RTL) education management built with Next.js 16, React 19, Clerk, Prisma 7 and PostgreSQL.
 
+## Neon PostgreSQL + Vercel
+
+This project is configured to run on **Neon PostgreSQL**. Runtime queries use the
+Neon **pooled** `DATABASE_URL` through the existing `@prisma/adapter-pg`;
+Prisma CLI uses `DIRECT_URL` in `prisma.config.ts`. `npm run build`
+generates the Prisma client but never runs migrations.
+
+For the exact setup, environment separation, and migration safety, read
+[`docs/neon-vercel-setup.md`](docs/neon-vercel-setup.md).
+
+```sh
+cp .env.example .env
+# Fill .env with the two connection strings from the Neon development branch.
+npm ci
+npm run db:check
+# Only after checking the target is a disposable DEVELOPMENT branch:
+npm run db:deploy
+npm run dev
+```
+
+**Production:** configure separate Neon production credentials as Vercel environment
+variables (not in Git). Apply verified production migrations separately, never as
+part of `next build`. The parent-data migration is destructive and has not been
+verified against real data.
+
 ## Roles and privacy
 - Exactly one configured teacher account (`TEACHER_EMAIL`) administers the students, groups, timetables, attendance, fees, homework, grades, and classrooms.
 - Students have individual `STUDENT` accounts. The teacher explicitly assigns the verified Clerk email to a student's record. Unassigned sign-ins cannot read any student records.
@@ -63,6 +88,6 @@ npm run lint
 npm run build
 ```
 
-Database connection is configured in `.env`; Clerk keys and the teacher email can be provided in `.env.local`. Review `.env.local.example`.
+Neon pooled and direct development connections are configured in `.env`; Clerk keys and the teacher email can be provided in `.env.local`. Review `.env.local.example` and `docs/neon-vercel-setup.md`.
 
 Historical migrations contain old table names needed for replaying earlier schema revisions; only the latest migration drops those tables. Do not rewrite already applied migrations on a deployed database.

@@ -15,6 +15,14 @@ export function prismaPgPoolConfig(connectionString) {
     // Prisma Dev uses single-connection PGlite. Concurrent clients can collide
     // on unnamed prepared statements (PostgreSQL 08P01 / Prisma P2039).
     config.max = 1;
+  } else if (["postgres:", "postgresql:"].includes(url.protocol)
+    && url.hostname.endsWith(".neon.tech")
+    && url.hostname.includes("-pooler.")) {
+    // Vercel creates many short-lived server instances. Limit TCP connections
+    // per instance even when the Neon endpoint uses PgBouncer pooling.
+    config.max = 3;
+    config.idleTimeoutMillis = 10_000;
+    config.connectionTimeoutMillis = 10_000;
   }
   return config;
 }

@@ -14,6 +14,9 @@ jobs:
     env:
       # No production tokens, database URLs or user data are needed.
       NODE_ENV: test
+      # Dummy, unreachable URLs only: Prisma generation/build do not migrate.
+      DATABASE_URL: postgresql://test:unused@ep-ci-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require
+      DIRECT_URL: postgresql://test:unused@ep-ci.us-east-1.aws.neon.tech/neondb?sslmode=require
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jb20k
       CLERK_SECRET_KEY: sk_test_dummy_for_build_only
     steps:
@@ -23,6 +26,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run test:neon-config
       - run: npm run db:generate
       - run: npm run lint
       - run: npm run build

@@ -11,6 +11,15 @@ const prisma = new PrismaClient({
 });
 
 const reset = process.argv.includes("--reset");
+const seedHost = (() => {
+  try { return new URL(process.env.DATABASE_URL).hostname; }
+  catch { return ""; }
+})();
+// Do not wipe a hosted database unless explicitly opted in for the selected
+// disposable development branch. This never allows resets with NODE_ENV=production.
+if (reset && seedHost.endsWith(".neon.tech") && process.env.ALLOW_REMOTE_SEED_RESET !== "true") {
+  throw new Error("Remote Neon reset blocked. Use a disposable DEV branch and explicitly set ALLOW_REMOTE_SEED_RESET=true to wipe it.");
+}
 const DAY = 24 * 60 * 60 * 1000;
 const DAY_INDEX = { SUN: 0, MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6 };
 
