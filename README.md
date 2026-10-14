@@ -31,6 +31,8 @@ npm run db:generate
 npm run lint
 npm run build
 npm run test:students
+npm run test:student-portal
+npm run test:privacy-migration
 npm run test:classrooms
 npm run test:classroom-invitations
 ```
