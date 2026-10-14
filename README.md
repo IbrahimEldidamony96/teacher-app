@@ -49,7 +49,7 @@ Teacher: students, groups, attendance, payment records, timetable and rescheduli
 
 Student: personal dashboard, attendance and grades, fees, schedule, homework submission with private attachments, and eligible classrooms.
 
-Existing classroom invitations can still be opened through private student invitation links. Live video uses peer-to-peer WebRTC and uploads currently use local server disk; assess hosting constraints before production deployment.
+A classroom invitation is now only a deep link: the recipient must log in as the approved student before seeing private lessons. Old links that were sent to parent phones no longer grant access by themselves. Live video uses peer-to-peer WebRTC and uploads currently use local server disk; assess hosting constraints before production deployment.
 
 ## Developer commands
 ```bash

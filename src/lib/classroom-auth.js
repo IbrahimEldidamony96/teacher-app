@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { classroomCookieName, inviteParticipantId, verifyClassroomInvite } from "@/lib/classroom-invites";
+import { inviteParticipantId, verifyClassroomInvite } from "@/lib/classroom-invites";
 import { ClassroomError } from "@/lib/classroom-errors";
 
 export async function actorFromClassroomInvite(sessionId, token) {
@@ -41,8 +40,10 @@ export async function getClassroomActor(sessionId) {
     if (participant) return { role: "STUDENT", sessionId, participantId: participant.id, studentId: user.studentProfile.id, name: user.name };
     return null; // A signed-in student must never fall back to somebody else\u0027s invite token.
   }
-  const token = (await cookies()).get(classroomCookieName(sessionId))?.value;
-  return actorFromClassroomInvite(sessionId, token);
+  // A private invitation link (including any previously sent to a parent) is
+  // not authentication. Only the signed-in student associated with this row
+  // can access video, messages or classroom API actions.
+  return null;
 }
 
 export async function requireClassroomActor(sessionId) {

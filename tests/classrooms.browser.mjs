@@ -18,6 +18,8 @@ const env = { ...parse(await readFile(".env.local", "utf8")), ...process.env };
 assert.ok(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_"), "Browser tests require Clerk development keys.");
 assert.ok(env.CLERK_SECRET_KEY?.startsWith("sk_test_"), "Browser tests require Clerk development keys.");
 assert.ok(env.TEACHER_EMAIL, "Configure the development teacher account first.");
+const studentEmails = [env.E2E_STUDENT_EMAIL_1, env.E2E_STUDENT_EMAIL_2];
+assert.ok(studentEmails.every(Boolean), "Set E2E_STUDENT_EMAIL_1 and E2E_STUDENT_EMAIL_2 to two verified Clerk development student accounts.");
 process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 process.env.CLERK_SECRET_KEY = env.CLERK_SECRET_KEY;
 let database, prisma, server, browser, teacherPage;
@@ -60,7 +62,7 @@ try {
   const clerkId = await teacherPage.evaluate(() => window.Clerk.user.id);
   await prisma.user.create({ data: { clerkId, email: env.TEACHER_EMAIL, name: "Browser Test Teacher", role: "TEACHER" } });
   const group = await prisma.studyGroup.create({ data: { name: "Browser Test Class", gradeLevel: "PRIMARY_1", monthlyFee: 0 } });
-  await Promise.all(["Browser Student A", "Browser Student B"].map((name) => prisma.student.create({ data: { name, gradeLevel: "PRIMARY_1", enrollments: { create: { groupId: group.id } } } })));
+  const groupStudents = await Promise.all(["Browser Student A", "Browser Student B"].map((name, i) => prisma.student.create({ data: { name, gradeLevel: "PRIMARY_1", loginEmail: studentEmails[i].toLowerCase(), enrollments: { create: { groupId: group.id } } } })));
   const createThroughForm = async (mode, title) => {
     await teacherPage.goto("/teacher/classrooms");
     await teacherPage.getByLabel("عنوان الحصة").fill(title);
@@ -87,6 +89,14 @@ try {
   for (let i = 0; i < pages.length; i += 1) {
     pages[i].setDefaultTimeout(45_000);
     pages[i].on("pageerror", (error) => issues.push(redact(error.message)));
+    await setupClerkTestingToken({ page: pages[i] });
+    await pages[i].goto("/");
+    await clerk.signIn({ page: pages[i], emailAddress: studentEmails[i] });
+    const clerkId = await pages[i].evaluate(() => window.Clerk.user.id);
+    const account = await prisma.user.create({
+      data: { clerkId, email: studentEmails[i].toLowerCase(), name: groupStudents[i].name, role: "STUDENT" },
+    });
+    await prisma.student.update({ where: { id: groupStudents[i].id }, data: { userId: account.id } });
     await pages[i].goto(state.roster[i].invitePath);
     await pages[i].getByRole("button", { name: "انضمام ومشاهدة الحصة", exact: true }).click();
   }
@@ -163,8 +173,7 @@ try {
   assert.equal((await outsider.request.get(`${recordingEndpoint}/video`)).status(), 401);
   const invalidRange = await studentContexts[0].request.get(`${recordingEndpoint}/video`, { headers: { Range: "bytes=999999999-" } });
   assert.equal(invalidRange.status(), 416);
-  const cookie = (await studentContexts[0].cookies()).find((item) => item.name === `classroom_${recordingId}`);
-  assert.ok(cookie?.httpOnly);
+  assert.equal((await studentContexts[0].cookies()).some((item) => item.name === `classroom_${recordingId}`), false);
   await teacherPage.getByRole("button", { name: "تقدير العدد من الفيديو", exact: true }).click();
   await expect(teacherPage.getByTestId("headcount-result")).toContainText("عدد اللقطات: 12", { timeout: 120_000 });
   assert.equal((await prisma.classroomSession.findUniqueOrThrow({ where: { id: recordingId } })).headcountEstimate, 0);
