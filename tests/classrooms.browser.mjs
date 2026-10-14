@@ -93,11 +93,10 @@ try {
     await pages[i].goto(state.roster[i].invitePath);
     await expect(pages[i]).toHaveURL(/\/sign-in/);
     await clerk.signIn({ page: pages[i], emailAddress: studentEmails[i] });
-    const clerkId = await pages[i].evaluate(() => window.Clerk.user.id);
-    const account = await prisma.user.create({
-      data: { clerkId, email: studentEmails[i].toLowerCase(), name: groupStudents[i].name, role: "STUDENT" },
-    });
-    await prisma.student.update({ where: { id: groupStudents[i].id }, data: { userId: account.id } });
+    await pages[i].goto("/dashboard");
+    await expect(pages[i].getByRole("heading", { name: /أهلًا/ })).toBeVisible();
+    const account = await prisma.student.findUniqueOrThrow({ where: { id: groupStudents[i].id } });
+    assert.ok(account.userId, "Verified student sign-in should automatically link the approved student record.");
     await pages[i].goto(state.roster[i].invitePath);
     await pages[i].getByRole("button", { name: "انضمام ومشاهدة الحصة", exact: true }).click();
   }
