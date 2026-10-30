@@ -44,6 +44,7 @@ export default function ClassroomRoom({ initialState, iceServers, localOnly = fa
   const [invitationProgress, setInvitationProgress] = useState(null);
   const [invitationResults, setInvitationResults] = useState({});
   const [micMuted, setMicMuted] = useState(false);
+  const [cameraMuted, setCameraMuted] = useState(false);
   const messageCursor = useRef(initialState.messages.at(-1)?.id ?? 0);
   const signalCursor = useRef(0);
   const queue = useRef(Promise.resolve());
@@ -111,10 +112,21 @@ export default function ClassroomRoom({ initialState, iceServers, localOnly = fa
     setBusy(true);
     setProblem("");
     try {
-      await media.startCamera();
+      if (!await media.startCamera()) return;
       await action({ action: "start" });
       setMicMuted(false);
     } catch (failure) { media.stopCamera(); setProblem(failure.message); }
+    finally { setBusy(false); }
+  }
+
+  async function shareStudentMedia() {
+    setBusy(true);
+    setProblem("");
+    try {
+      if (!await media.startCamera()) return;
+      setMicMuted(false);
+      setCameraMuted(false);
+    } catch (failure) { setProblem(failure.message); }
     finally { setBusy(false); }
   }
 
@@ -199,6 +211,7 @@ export default function ClassroomRoom({ initialState, iceServers, localOnly = fa
   }
 
   function rejoin() {
+    media.stopCamera();
     const next = connectionUuid();
     generation.current = next;
     signalCursor.current = 0;
@@ -252,10 +265,33 @@ export default function ClassroomRoom({ initialState, iceServers, localOnly = fa
           </div>}
           {media.localStream && active && <p className="text-xs text-gray-500">كل طالب مسجل في المجموعة يستلم رابط دعوته الخاص على رقم ولي الأمر. الدعوات المُرسلة تُتخطى عند إعادة المحاولة.</p>}
           {invitationProgress && <p role="status" className="text-sm text-blue-600">الدعوات: {invitationProgress.completed} من {invitationProgress.total}{inviting && " · جاري الإرسال"}</p>}
-          <p className="text-xs text-gray-500">شغل الكاميرا والميكروفون بعد استعدادك. الطلاب يشاهدون البث ويشاركون بالأسئلة المكتوبة.</p>
+          <p className="text-xs text-gray-500">شغل الكاميرا والميكروفون بعد استعدادك. الطلاب يقدروا يشاركوا الكاميرا والميكروفون معاك بجانب الأسئلة المكتوبة.</p>
+          {active && media.remoteStreams.length > 0 && <div className="space-y-3">
+            <h3 className="font-semibold">مشاركات الطلاب</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {media.remoteStreams.map((remote) => <figure key={remote.id} className="space-y-1">
+                <ClassroomStream stream={remote.stream} testId="teacher-student-video" />
+                <figcaption className="text-sm font-medium">{remote.name}</figcaption>
+              </figure>)}
+            </div>
+          </div>}
         </div> : <div className="space-y-3">
           {joined && !ended && media.remoteStreams.map((remote) => <ClassroomStream key={remote.id} stream={remote.stream} testId="student-live-video" />)}
           {(!joined || !media.remoteStreams.length) && <p className="text-sm text-gray-500">{ended ? "البث انتهى." : !joined ? "اضغط انضمام لمشاهدة البث." : state.session.teacherOnline ? "جاري اتصال الفيديو..." : "في انتظار المدرس."}</p>}
+          {active && <div className="space-y-3">
+            <p className="text-xs text-gray-500">تقدر تشارك الكاميرا والميكروفون مع المدرس. المشاركة بتبدأ بس لما تضغط الزر وتسمح للمتصفح باستخدامهم.</p>
+            {media.localStream && <figure className="max-w-sm space-y-1">
+              <ClassroomStream stream={media.localStream} muted testId="student-local-video" />
+              <figcaption className="text-sm">الكاميرا بتاعتك · {micMuted ? "الميكروفون مكتوم" : "الميكروفون شغال"}{cameraMuted && " · الكاميرا مقفولة"}</figcaption>
+            </figure>}
+            <div className="flex flex-wrap gap-3">
+              {!media.localStream ? <button className={button} disabled={busy} onClick={shareStudentMedia}>{busy ? "جاري الفتح..." : "مشاركة الكاميرا والميكروفون"}</button> : <>
+                <button className="ui-button-secondary" aria-pressed={micMuted} onClick={() => { media.toggleMicrophone(); setMicMuted((value) => !value); }}>{micMuted ? "تشغيل الميكروفون" : "كتم الميكروفون"}</button>
+                <button className="ui-button-secondary" aria-pressed={cameraMuted} onClick={() => { media.toggleCamera(); setCameraMuted((value) => !value); }}>{cameraMuted ? "تشغيل الكاميرا" : "إيقاف الكاميرا"}</button>
+                <button className={dangerButton} onClick={() => media.stopCamera()}>إيقاف المشاركة</button>
+              </>}
+            </div>
+          </div>}
         </div>}
         {teacher && !ended && <button className={dangerButton} disabled={busy} onClick={endSession}>إنهاء الجلسة</button>}
       </section>

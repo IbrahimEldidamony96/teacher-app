@@ -145,6 +145,13 @@ describe("classrooms", { concurrency: false }, () => {
     await api.changeClassroom(owner, signal);
     assert.equal((await api.getClassroomState(actors[0], { connectionId: studentId })).signals.length, 1);
     assert.equal((await api.getClassroomState(actors[1], { connectionId: otherId })).signals.length, 0);
+    // Starting or stopping student capture renegotiates the existing teacher link.
+    await api.changeClassroom(actors[0], { ...signal, connectionId: studentId, toPeer: `teacher:${teacherId}` });
+    const teacherSignals = (await api.getClassroomState(owner, { connectionId: teacherId })).signals;
+    assert.equal(teacherSignals.length, 1);
+    assert.equal(teacherSignals[0].fromPeer, `${actors[0].participantId}:${studentId}`);
+    assert.equal(teacherSignals[0].payload.description.type, "offer");
+    assert.equal((await api.getClassroomState(actors[1], { connectionId: otherId })).signals.length, 0);
     await assert.rejects(api.changeClassroom(actors[1], { ...signal, connectionId: otherId }));
     await api.changeClassroom(actors[0], { action: "connect", connectionId: randomUUID() });
     assert.equal((await api.getClassroomState(actors[0], { connectionId: studentId })).signals.length, 0);

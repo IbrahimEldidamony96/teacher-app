@@ -76,6 +76,14 @@ Teacher: students, groups, attendance, payment records, timetable and rescheduli
 
 Student: personal dashboard, attendance and grades, fees, schedule, homework submission with private attachments, and eligible classrooms.
 
+In live classrooms, students can choose to share their camera and microphone with
+the teacher. Joining only starts playback. Sharing adds a muted local preview,
+separate camera and microphone controls, and a stop button; the teacher sees named
+student video tiles. Rejoining or ending the lesson releases capture devices.
+Run `npm run test:classroom-media:browser` to check this flow with fake devices and
+isolated browser profiles, without a database or Clerk test accounts (Microsoft
+Edge by default; set `E2E_BROWSER_CHANNEL=chromium` to use Playwright Chromium).
+
 A classroom invitation is now only a deep link: the recipient must log in as the approved student before seeing private lessons. Old links that were sent to parent phones no longer grant access by themselves. Live video uses peer-to-peer WebRTC and uploads currently use local server disk; assess hosting constraints before production deployment.
 
 ## Developer commands
@@ -94,6 +102,12 @@ npm run build
 ```
 
 Neon pooled and direct development connections are configured in `.env`; Clerk keys and the teacher email can be provided in `.env.local`. Review `.env.local.example` and `docs/neon-vercel-setup.md`.
+
+On Windows, `npm run build` and `npm run public:start` automatically clean stale
+production output with native filesystem tools when OneDrive reports directories
+as links. This prevents Next.js cleanup from failing with `EPERM: unlink` while
+preserving `.next/cache` and `.next/dev`. The production output remains `.next`,
+so `npm start` continues to use the normal build.
 
 Next.js gives `.env.local` priority over `.env`, including empty values. If Clerk
 reports missing keys when they are already set in `.env`, remove or comment out

@@ -6,7 +6,7 @@
     "postinstall": "prisma generate",
     "predev": "prisma generate",
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && node scripts/build.mjs",
     "start": "next start",
     "public:start": "node scripts/public-preview.mjs start",
     "public:stop": "node scripts/public-preview.mjs stop",
@@ -27,7 +27,8 @@
     "db:local:stop": "prisma dev stop teacher-app",
     "test:classrooms": "tsx --test tests/classrooms.test.mjs",
     "test:classroom-invitations": "tsx --test tests/classroom-invitations.test.mjs",
-    "test:classrooms:browser": "tsx tests/classrooms.browser.mjs"
+    "test:classrooms:browser": "tsx tests/classrooms.browser.mjs",
+    "test:classroom-media:browser": "node tests/classroom-media.browser.mjs"
   },
   "dependencies": {
     "@clerk/localizations": "^4.19.0",
@@ -50,6 +51,7 @@
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "esbuild": "0.28.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.6",
     "prisma": "7.10.0",

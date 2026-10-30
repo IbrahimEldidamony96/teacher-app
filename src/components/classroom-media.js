@@ -2,11 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+function syncLocalTracks(pc, stream) {
+  const tracks = stream?.getTracks() ?? [];
+  for (const sender of pc.getSenders()) {
+    if (sender.track && !tracks.includes(sender.track)) pc.removeTrack(sender);
+  }
+  for (const track of tracks) {
+    if (!pc.getSenders().some((sender) => sender.track === track)) pc.addTrack(track, stream);
+  }
+}
+
 export function useClassroomMedia({ role, status, peers, signals, iceServers, send }) {
   const connections = useRef(new Map());
   const signalQueue = useRef(Promise.resolve());
   const lastSignal = useRef(0);
   const streamRef = useRef(null);
+  const captureVersion = useRef(0);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState([]);
   const [error, setError] = useState("");
@@ -23,6 +34,11 @@ export function useClassroomMedia({ role, status, peers, signals, iceServers, se
     pc.ontrack = ({ streams, track }) => {
       const stream = streams[0] ?? new MediaStream([track]);
       setRemoteStreams((current) => [...current.filter((item) => item.id !== target.id), { id: target.id, name: target.name, stream }]);
+      stream.onremovetrack = () => {
+        if (!stream.getTracks().length) {
+          setRemoteStreams((current) => current.filter((item) => item.id !== target.id || item.stream !== stream));
+        }
+      };
     };
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "failed") setError("تعذر اتصال الفيديو. أعد الانضمام أو جرب شبكة أخرى.");
@@ -39,23 +55,22 @@ export function useClassroomMedia({ role, status, peers, signals, iceServers, se
         entry.makingOffer = false;
       }
     };
-    if (role === "TEACHER" && streamRef.current) {
-      for (const track of streamRef.current.getTracks()) pc.addTrack(track, streamRef.current);
-    }
+    syncLocalTracks(pc, streamRef.current);
     return entry;
-  }, [iceServers, role, send]);
+  }, [iceServers, send]);
 
   useEffect(() => {
     const current = connections.current;
     for (const [id, entry] of current) {
-      if (status !== "ACTIVE" || !peers.some((target) => target.id === id) || (role === "TEACHER" && !localStream)) {
+      if (status !== "ACTIVE" || !peers.some((target) => target.id === id)) {
         entry.pc.close();
         current.delete(id);
+      } else {
+        syncLocalTracks(entry.pc, localStream);
       }
     }
-    if (status === "ENDED") streamRef.current?.getTracks().forEach((track) => track.stop());
-    if (status === "ACTIVE" && role === "TEACHER" && localStream) peers.forEach(peer);
-  }, [localStream, peer, peers, role, status]);
+    if (status === "ACTIVE" && localStream) peers.forEach(peer);
+  }, [localStream, peer, peers, status]);
 
   useEffect(() => {
     for (const signal of signals) {
@@ -93,19 +108,40 @@ export function useClassroomMedia({ role, status, peers, signals, iceServers, se
   useEffect(() => {
     const current = connections.current;
     return () => {
+      captureVersion.current += 1;
       current.forEach(({ pc }) => pc.close());
       current.clear();
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
+  const stopCamera = useCallback(() => {
+    captureVersion.current += 1;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    connections.current.forEach(({ pc }) => {
+      if (pc.signalingState !== "closed") syncLocalTracks(pc, null);
+    });
+    setLocalStream(null);
+  }, []);
+
+  useEffect(() => {
+    // Leaving an active connection also cancels a pending browser permission prompt.
+    if (status === "ACTIVE") return stopCamera;
+  }, [status, stopCamera]);
+
   async function startCamera() {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("الكاميرا تحتاج رابطاً آمناً (HTTPS) أو localhost.");
+    const version = ++captureVersion.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 960 }, height: { ideal: 540 } },
         audio: { echoCancellation: true, noiseSuppression: true },
       });
+      if (version !== captureVersion.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return null;
+      }
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = stream;
       setLocalStream(stream);
@@ -116,17 +152,15 @@ export function useClassroomMedia({ role, status, peers, signals, iceServers, se
     }
   }
 
-  function stopCamera() {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    setLocalStream(null);
-  }
-
   function toggleMicrophone() {
     streamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !track.enabled; });
   }
 
-  return { localStream, remoteStreams: remoteStreams.filter((item) => peers.some((target) => target.id === item.id)), startCamera, stopCamera, toggleMicrophone, error };
+  function toggleCamera() {
+    streamRef.current?.getVideoTracks().forEach((track) => { track.enabled = !track.enabled; });
+  }
+
+  return { localStream, remoteStreams: remoteStreams.filter((item) => status === "ACTIVE" && peers.some((target) => target.id === item.id)), startCamera, stopCamera, toggleMicrophone, toggleCamera, error };
 }
 
 export function ClassroomStream({ stream, muted = false, videoRef, testId }) {

@@ -187,7 +187,7 @@ async function start(skipBuild) {
   await fs.access(binary).catch(() => { throw new Error(`cloudflared is missing. Install the Windows cloudflared binary at ${binary}.`); });
   await checkPort();
   await runNode([path.join(workspace, "scripts", "ensure-local-database.mjs")]);
-  if (!skipBuild) await runNode([nextCli, "build"]);
+  if (!skipBuild) await runNode([path.join(workspace, "scripts", "build.mjs")]);
   await fs.access(path.join(workspace, ".next", "BUILD_ID")).catch(() => { throw new Error("A production build is required. Run npm run build, or omit --skip-build."); });
   await fs.writeFile(tunnelLog, "");
   await fs.writeFile(serverLog, "");
