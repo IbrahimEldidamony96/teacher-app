@@ -79,6 +79,11 @@ Student: personal dashboard, attendance and grades, fees, schedule, homework sub
 A classroom invitation is now only a deep link: the recipient must log in as the approved student before seeing private lessons. Old links that were sent to parent phones no longer grant access by themselves. Live video uses peer-to-peer WebRTC and uploads currently use local server disk; assess hosting constraints before production deployment.
 
 ## Developer commands
+
+`npm run dev` regenerates Prisma Client before starting Next.js. After changing
+`prisma/schema.prisma` while the server is running, run `npm run db:generate`
+and restart the development server to replace its cached Prisma client.
+
 ```bash
 npm run dev
 npm run db:generate
@@ -89,5 +94,11 @@ npm run build
 ```
 
 Neon pooled and direct development connections are configured in `.env`; Clerk keys and the teacher email can be provided in `.env.local`. Review `.env.local.example` and `docs/neon-vercel-setup.md`.
+
+Next.js gives `.env.local` priority over `.env`, including empty values. If Clerk
+reports missing keys when they are already set in `.env`, remove or comment out
+empty `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` assignments in
+`.env.local`, then restart `npm run dev`. When setting keys in `.env.local`,
+uncomment and fill both entries in the example.
 
 Historical migrations contain old table names needed for replaying earlier schema revisions; only the latest migration drops those tables. Do not rewrite already applied migrations on a deployed database.

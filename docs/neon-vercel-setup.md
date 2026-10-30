@@ -68,8 +68,19 @@ don't branch full production rows into preview without anonymizing.
 
 Vercel build command: `npm run build` (runs `prisma generate && next build`).
 No special build script or automatic `migrate deploy` on Vercel.
+`npm ci` / `npm install` also runs `prisma generate` through `postinstall`.
+The generated client in `src/generated/prisma` is intentionally ignored by Git;
+it must be generated on Vercel before Next.js compiles the application.
 These variables exist in server-side environments; only
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is publicly exposed.
+
+If the build reports `Module not found` at `src/lib/prisma.js`, verify the
+deployment's source branch and commit contain these scripts and set Vercel's
+Build Command to `npm run build`. The logs should show `prisma generate` before
+`next build`. Create a new deployment from that commit after updating the
+settings; retry without the build cache if an older client was cached.
+Errors referencing `src/app/parent/...` come from an earlier version: the
+`feature/student-accounts-single-teacher` branch uses `src/app/student/...`.
 
 **Before activating production**, apply reviewed migrations to the correct
 production database using a separate controlled deploy process with
