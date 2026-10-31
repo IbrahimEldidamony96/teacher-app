@@ -65,11 +65,28 @@ async function read(file, fallback = "") {
   }
 }
 
+export async function previewStateForWorkspace(state, expectedWorkspace, matchProcess = matches) {
+  if (!state) return null;
+  if (typeof state.workspace !== "string") throw new Error("Invalid public preview workspace state.");
+  const normalize = (value) => {
+    const resolved = path.resolve(value);
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  };
+  if (normalize(state.workspace) !== normalize(expectedWorkspace)) {
+    const alive = await Promise.all([matchProcess(state.server), matchProcess(state.tunnel)]);
+    if (alive.some(Boolean)) {
+      throw new Error("A public preview is running from another workspace. Stop it from that project before starting this one.");
+    }
+    // A moved or copied project may inherit the global record of an old, stopped
+    // preview. It can start afresh without touching another project's processes.
+    return null;
+  }
+  return state;
+}
+
 async function readState() {
   const source = await read(stateFile);
-  const state = source ? JSON.parse(source) : null;
-  if (state && state.workspace !== workspace) throw new Error("Public preview state belongs to another workspace; refusing to change its processes.");
-  return state;
+  return previewStateForWorkspace(source ? JSON.parse(source) : null, workspace);
 }
 
 async function save(state) {
@@ -267,4 +284,6 @@ async function main() {
   }
 }
 
-main().catch((error) => { console.error(error.message); process.exitCode = 1; });
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => { console.error(error.message); process.exitCode = 1; });
+}

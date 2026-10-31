@@ -109,6 +109,13 @@ as links. This prevents Next.js cleanup from failing with `EPERM: unlink` while
 preserving `.next/cache` and `.next/dev`. The production output remains `.next`,
 so `npm start` continues to use the normal build.
 
+For student access from other devices, run `npm run public:start` and open the
+HTTPS address it prints. Keep the computer online during the lesson. After a
+restart, refresh the teacher classroom and copy fresh student invitations; links
+containing the old temporary hostname stop working. `npm run public:status`
+checks the server and tunnel. A moved project can replace an old preview record
+when both recorded processes have stopped.
+
 Next.js gives `.env.local` priority over `.env`, including empty values. If Clerk
 reports missing keys when they are already set in `.env`, remove or comment out
 empty `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` assignments in
